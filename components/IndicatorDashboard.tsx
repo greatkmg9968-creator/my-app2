@@ -136,6 +136,11 @@ export default function IndicatorDashboard({ indicators }: IndicatorDashboardPro
               (전체 {rows.length}건)
             </span>
           </h2>
+          {/* 막대 읽는 법 */}
+          <p className="mb-3 text-xs text-foreground/70">
+            막대 읽는 법: 막대 길이는 진척률(100%가 가득 찬 길이)이고, 세로선은 자료 기준일 시점의 경과율입니다.
+            막대가 세로선보다 짧으면 시간보다 뒤처진 부진지표입니다. 막대 끝의 노란 조각은 100%를 넘긴 지표입니다.
+          </p>
           <IndicatorTable rows={rows} />
         </>
       )}

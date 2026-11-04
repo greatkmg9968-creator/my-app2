@@ -8,6 +8,7 @@ import {
   formatNumber,
   formatPercent,
 } from "@/lib/format";
+import ProgressBar from "@/components/ProgressBar";
 import type { Indicator } from "@/types/indicator";
 
 /** 표 한 줄: 지표와, 자료 기준일로 평가한 결과 */
@@ -22,12 +23,13 @@ interface IndicatorTableProps {
 
 /**
  * 진척률 칸.
+ * - 값을 알면: 퍼센트 숫자와 진행 막대(경과율 눈금선 포함)
  * - 부진: "부진" 표시와 경과율보다 얼마나 낮은지(%p)
  * - 판정 보류: 진척률을 알 수 없어 "직접 입력 필요"
  * - 0~200 밖의 값은 잘라 표시하고 원래 값을 안내한다.
  */
 function ProgressCell({ evaluation }: { evaluation: IndicatorEvaluation }) {
-  const { progress, displayProgress, status, gap } = evaluation;
+  const { progress, displayProgress, status, gap, elapsedRate } = evaluation;
 
   if (progress === null || displayProgress === null) {
     return (
@@ -52,6 +54,13 @@ function ProgressCell({ evaluation }: { evaluation: IndicatorEvaluation }) {
           (원래 값 {formatPercent(progress)})
         </span>
       )}
+      <span className="mt-2 block">
+        <ProgressBar
+          progress={progress}
+          elapsedRate={elapsedRate}
+          delayed={status === "delayed"}
+        />
+      </span>
       {status === "delayed" && gap !== null && (
         <span className="mt-1 block">
           <span className="inline-block rounded bg-red-600 px-1.5 py-0.5 text-xs font-medium text-white">
