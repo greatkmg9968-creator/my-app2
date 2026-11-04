@@ -49,7 +49,7 @@ export type UploadResult =
 
 /** 검사에 필요한 바깥 정보 */
 export interface UploadContext {
-  /** 로그인한 사용자의 부점. 파일 안의 부점이 이것과 같아야 한다. */
+  /** 화면에 입력한 부점 이름. 파일 안의 부점이 이것과 같아야 한다. */
   branch: string;
   /** 화면의 자료 기준일. 부진지표의 보완사항 필수 검사에 쓴다. */
   referenceDate: string;
@@ -161,7 +161,8 @@ export function parseUploadedSheet(sheet: RawSheet, context: UploadContext): Upl
   };
 
   for (const { rowNumber, texts } of dataRows) {
-    // 부점은 내 부점이어야 한다. (직접 입력 폼은 부점을 자동으로 넣으므로, 엑셀에서만 검사한다)
+    // 부점은 화면에 입력한 부점 이름과 같아야 한다. (직접 입력 폼은 부점을 자동으로 넣으므로, 엑셀에서만 검사한다)
+    // 다른 부점 파일을 실수로 올리는 것을 막는 장치이며, 로그인 같은 접근 통제는 아니다.
     const fileBranch = textOf(texts, "branch");
     if (fileBranch === "") {
       errors.push({ row: rowNumber, message: `${FIELD_LABELS.branch}: 부점을 입력해 주세요.` });

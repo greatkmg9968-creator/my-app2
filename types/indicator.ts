@@ -37,7 +37,7 @@ export function isIndicatorCategory(value: string): value is IndicatorCategory {
  * - 퍼센트 값(진척률, 예상달성도)은 0~200 사이 숫자다. (100 = 목표 100% 달성)
  */
 export interface Indicator {
-  /** 부점. 로그인 계정의 부점(app_metadata)과 같아야 하며 입력 창에서는 자동으로 채운다. */
+  /** 부점. 화면 위쪽 기준 정보에 입력한 부점 이름이 자동으로 들어간다. (엑셀로 올릴 때는 이 이름과 같아야 한다) */
   branch: string;
 
   /** 지표 구분(큰 범주): 부점 계량 / 부점 비계량 / 공통 계량 / 공통 비계량. 필터에 사용한다. */

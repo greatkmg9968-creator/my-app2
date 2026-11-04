@@ -87,8 +87,8 @@ const CONTROL_CLASS =
 interface IndicatorDashboardProps {
   /** 처음에 보여줄 지표. 화면에서 추가·수정·삭제하면 이 화면 안에서만 바뀐다. */
   initialIndicators: Indicator[];
-  /** 로그인한 사용자의 부점. 새 지표에 자동으로 넣는다. */
-  branch: string;
+  /** 처음에 채워 둘 부점 이름. 화면에서 바꿀 수 있고, 새 지표에 자동으로 들어간다. */
+  initialBranch: string;
 }
 
 // 오늘 날짜는 브라우저에서만 안다. 서버에서 처음 그릴 때는 빈 값을 쓰고,
@@ -136,10 +136,25 @@ function SummaryCard({
 
 export default function IndicatorDashboard({
   initialIndicators,
-  branch,
+  initialBranch,
 }: IndicatorDashboardProps) {
   // 지표 목록. 이 화면의 메모리에만 두고 저장하지 않는다.
   const [indicators, setIndicators] = useState<Indicator[]>(initialIndicators);
+
+  // 부점 이름. 로그인이 없으므로 화면에서 직접 입력한다. (입력 중에는 공백도 그대로 두고, 쓸 때는 앞뒤 공백을 지운다)
+  const [branchInput, setBranchInput] = useState(initialBranch);
+  const branch = branchInput.trim();
+  const branchReady = branch !== "";
+
+  /** 부점 이름을 바꾸면 이미 있는 지표의 부점도 같은 이름으로 맞춘다. (엑셀로 내보낸 뒤 다시 올릴 때 부점이 어긋나지 않게) */
+  const handleBranchChange = (value: string) => {
+    setBranchInput(value);
+    const next = value.trim();
+    if (next === "") return;
+    setIndicators((current) =>
+      current.map((item) => (item.branch === next ? item : { ...item, branch: next })),
+    );
+  };
   const [formTarget, setFormTarget] = useState<FormTarget>(null);
   const isFull = indicators.length >= MAX_INDICATORS;
 
@@ -199,7 +214,7 @@ export default function IndicatorDashboard({
   const [uploadNotice, setUploadNotice] = useState<UploadNotice | null>(null);
   const [excelBusy, setExcelBusy] = useState(false);
 
-  /** 엑셀 양식(.xlsx)을 만들어 내려받는다. 양식에는 내 부점 이름이 미리 적혀 있다. */
+  /** 엑셀 양식(.xlsx)을 만들어 내려받는다. 양식에는 화면에 입력한 부점 이름이 미리 적혀 있다. */
   const handleDownloadTemplate = async () => {
     setExcelBusy(true);
     setUploadNotice(null);
@@ -351,6 +366,19 @@ export default function IndicatorDashboard({
       >
         <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
           <label className="flex flex-col gap-1 text-sm">
+            <span className="text-foreground/70">부점</span>
+            <input
+              type="text"
+              value={branchInput}
+              onChange={(event) => handleBranchChange(event.target.value)}
+              placeholder="부점 이름"
+              maxLength={40}
+              aria-invalid={branchReady ? undefined : true}
+              data-testid="branch-input"
+              className="w-44 rounded border border-black/20 bg-background px-2 py-1 aria-[invalid=true]:border-red-600 dark:border-white/25"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
             <span className="text-foreground/70">자료 기준일</span>
             <input
               type="date"
@@ -369,6 +397,11 @@ export default function IndicatorDashboard({
         <p className="mt-3 text-xs text-foreground/70">
           이 화면의 값은 저장되지 않습니다. 새로고침하거나 창을 닫으면 사라지니, 엑셀로 내보내 보관하세요.
         </p>
+        {!branchReady && (
+          <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
+            부점 이름을 입력해야 지표를 추가하거나 엑셀 양식·올리기·내보내기를 쓸 수 있습니다.
+          </p>
+        )}
       </section>
 
       {rows === null || visibleRows === null ? (
@@ -408,7 +441,7 @@ export default function IndicatorDashboard({
             <button
               type="button"
               onClick={() => setFormTarget({ mode: "add" })}
-              disabled={isFull}
+              disabled={isFull || !branchReady}
               className="rounded bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               지표 추가
@@ -424,7 +457,7 @@ export default function IndicatorDashboard({
             <button
               type="button"
               onClick={handleDownloadTemplate}
-              disabled={excelBusy}
+              disabled={excelBusy || !branchReady}
               className={TOOL_BUTTON}
             >
               엑셀 양식 받기
@@ -432,7 +465,7 @@ export default function IndicatorDashboard({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={excelBusy}
+              disabled={excelBusy || !branchReady}
               className={TOOL_BUTTON}
             >
               엑셀 올리기
@@ -440,7 +473,7 @@ export default function IndicatorDashboard({
             <button
               type="button"
               onClick={handleExport}
-              disabled={excelBusy || indicators.length === 0}
+              disabled={excelBusy || !branchReady || indicators.length === 0}
               title="필터·정렬과 관계없이 전체 지표를 내보냅니다."
               className={TOOL_BUTTON}
             >

@@ -26,7 +26,7 @@ import {
 } from "@/types/indicator";
 
 interface IndicatorFormProps {
-  /** 로그인한 사용자의 부점. 입력칸 없이 자동으로 넣는다. */
+  /** 화면에 입력한 부점 이름. 입력칸 없이 자동으로 넣는다. */
   branch: string;
   /** 수정할 지표. 없으면 새 지표를 추가한다. */
   initial?: Indicator;
@@ -170,7 +170,7 @@ export default function IndicatorForm({
             {initial ? "지표 수정" : "지표 추가"}
           </h2>
           <p className="mt-1 text-xs text-foreground/70">
-            부점: <span className="font-medium text-foreground">{branch}</span> (로그인한 부점으로 자동 입력됩니다)
+            부점: <span className="font-medium text-foreground">{branch}</span> (화면 위쪽에 입력한 부점 이름이 자동으로 들어갑니다)
           </p>
         </header>
 

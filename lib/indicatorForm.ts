@@ -165,7 +165,7 @@ export function checkNoteRequired(values: IndicatorFormValues, referenceDate: st
 /**
  * 입력한 값을 검사해 지표 한 건으로 바꾼다.
  * @param values 폼에 입력한 값
- * @param branch 로그인한 사용자의 부점. 폼에서 입력받지 않고 자동으로 넣는다.
+ * @param branch 화면에 입력한 부점 이름. 폼에서 입력받지 않고 자동으로 넣는다.
  * @param referenceDate 화면의 자료 기준일. 주면 부진지표의 보완사항 필수 검사도 한다.
  */
 export function validateIndicatorForm(
