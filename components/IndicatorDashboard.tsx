@@ -29,7 +29,7 @@ import {
   type SortDirection,
   type SortKey,
 } from "@/lib/filterSort";
-import { checkUploadFile, TEMPLATE_FILE_NAME } from "@/lib/excelFormat";
+import { checkUploadFile, exportFileName, TEMPLATE_FILE_NAME } from "@/lib/excelFormat";
 import { formatUploadErrors, parseUploadedSheet } from "@/lib/excelRows";
 import { EMPTY_MARK, formatPercent } from "@/lib/format";
 import {
@@ -41,9 +41,12 @@ import {
 /** 지금 열려 있는 입력 창. 없으면 null */
 type FormTarget = { mode: "add" } | { mode: "edit"; index: number } | null;
 
-/** 엑셀 올리기·양식 받기 결과 안내. 성공이면 한 줄, 실패면 어느 줄이 왜 안 되는지 목록으로 보여준다. */
+/**
+ * 엑셀 양식 받기·올리기·내보내기 결과 안내. 성공이면 한 줄, 실패면 어느 줄이 왜 안 되는지 목록으로 보여준다.
+ * warning은 끝까지 진행했지만 알려야 할 것이 있을 때다. (예: 내보냈지만 보완사항이 빈 부진지표가 있음)
+ */
 interface UploadNotice {
-  kind: "success" | "error";
+  kind: "success" | "warning" | "error";
   title: string;
   details: string[];
 }
@@ -213,6 +216,48 @@ export default function IndicatorDashboard({
       setUploadNotice({
         kind: "error",
         title: "엑셀 양식을 만들지 못했습니다.",
+        details: ["잠시 뒤 다시 시도해 주세요."],
+      });
+    } finally {
+      setExcelBusy(false);
+    }
+  };
+
+  /**
+   * 현재 현황을 엑셀 파일로 저장한다.
+   * 필터·정렬과 관계없이 항상 전체 지표를 내보내고, 입력 순서 그대로 적는다.
+   * 보완사항이 빈 부진지표가 있어도 막지 않고 경고만 보여준다.
+   */
+  const handleExport = async () => {
+    if (rows === null || elapsedRate === null) return;
+    setExcelBusy(true);
+    setUploadNotice(null);
+    try {
+      const { buildExport } = await import("@/lib/excel");
+      const fileName = exportFileName(referenceDate);
+      downloadBytes(await buildExport({ rows, branch, referenceDate, elapsedRate }), fileName);
+
+      const missing = rows.filter((row) => hasMissingNote(row.indicator, row.evaluation.status));
+      if (missing.length > 0) {
+        setUploadNotice({
+          kind: "warning",
+          title: `엑셀 파일을 내보냈습니다. (${fileName}) 다만 보완사항이 비어 있는 부진지표가 ${missing.length}건 있습니다.`,
+          details: [
+            ...missing.slice(0, MAX_NOTICE_DETAILS).map((row) => `${row.indicator.name}: 보완사항을 적어 주세요.`),
+            "파일에도 같은 경고를 적어 두었습니다. 보완사항을 적고 다시 내보내면 경고가 사라집니다.",
+          ],
+        });
+      } else {
+        setUploadNotice({
+          kind: "success",
+          title: `엑셀 파일을 내보냈습니다. (${fileName}) 지표 ${rows.length}건 전체가 들어 있습니다.`,
+          details: ["이 화면의 값은 저장되지 않으니, 내려받은 파일을 보관하세요. 이 파일은 \"엑셀 올리기\"로 다시 올릴 수 있습니다."],
+        });
+      }
+    } catch {
+      setUploadNotice({
+        kind: "error",
+        title: "엑셀 파일을 내보내지 못했습니다.",
         details: ["잠시 뒤 다시 시도해 주세요."],
       });
     } finally {
@@ -392,6 +437,15 @@ export default function IndicatorDashboard({
             >
               엑셀 올리기
             </button>
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={excelBusy || indicators.length === 0}
+              title="필터·정렬과 관계없이 전체 지표를 내보냅니다."
+              className={TOOL_BUTTON}
+            >
+              엑셀 내보내기
+            </button>
             {/* 숨겨 둔 파일 선택 상자. "엑셀 올리기" 버튼이 대신 눌러 준다. */}
             <input
               ref={fileInputRef}
@@ -417,7 +471,9 @@ export default function IndicatorDashboard({
                 className={`w-full rounded-lg border px-4 py-3 text-sm ${
                   uploadNotice.kind === "error"
                     ? "border-red-600/50 bg-red-500/10"
-                    : "border-emerald-600/50 bg-emerald-500/10"
+                    : uploadNotice.kind === "warning"
+                      ? "border-amber-600/60 bg-amber-500/10"
+                      : "border-emerald-600/50 bg-emerald-500/10"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">

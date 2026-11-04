@@ -50,6 +50,27 @@ export const EXCEL_COLUMNS: readonly ExcelColumn[] = [
   { header: "평가기준일", key: "evalDate", width: 13 },
 ];
 
+/**
+ * 내보내는 파일에만 더 붙는 열. 올릴 때는 읽지 않고 무시한다. (부진 여부·경과율·차이는 올릴 때 다시 계산하기 때문)
+ */
+export const EXPORT_EXTRA_COLUMNS: readonly { header: string; width: number }[] = [
+  { header: "부진여부", width: 11 },
+  { header: "경과율(%)", width: 11 },
+  { header: "차이(%p)", width: 11 },
+];
+
+/** 내보내는 파일의 "부진여부" 칸에 적는 글자 */
+export const STATUS_LABELS = {
+  delayed: "부진",
+  normal: "정상",
+  pending: "판정 보류",
+} as const;
+
+/** 내보내는 파일 이름. 자료 기준일을 붙인다. (예: 지표현황_2026-10-15.xlsx) */
+export function exportFileName(referenceDate: string): string {
+  return `지표현황_${referenceDate}.xlsx`;
+}
+
 /** 반드시 있어야 하는 열(머리글). 값이 비어도 되는 열(기준값·목표값·실적값·진척률·보완사항)도 열 자체는 있어야 한다. */
 export const REQUIRED_HEADERS: readonly string[] = EXCEL_COLUMNS.map((column) => column.header);
 
