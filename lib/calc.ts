@@ -120,6 +120,14 @@ export function calcGap(progress: number, elapsedRate: number): number {
   return round1(round1(progress) - round1(elapsedRate));
 }
 
+/**
+ * 보완사항이 빠진 부진지표인지. 부진지표는 보완사항을 반드시 적어야 하므로, 부진인데 비어 있으면 true다.
+ * 공백만 적은 경우도 비어 있는 것으로 본다.
+ */
+export function hasMissingNote(indicator: Indicator, status: IndicatorStatus): boolean {
+  return status === "delayed" && (indicator.note ?? "").trim() === "";
+}
+
 /** 0~200 범위 안의 숫자면 true. NaN·무한대는 false. (직접 입력값 검증에 쓴다) */
 export function isInPercentRange(value: number): boolean {
   return Number.isFinite(value) && value >= PERCENT_MIN && value <= PERCENT_MAX;

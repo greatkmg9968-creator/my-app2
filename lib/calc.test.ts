@@ -9,6 +9,7 @@ import {
   calcProgress,
   clampForDisplay,
   evaluateIndicator,
+  hasMissingNote,
   isDelayed,
   isInPercentRange,
   resolveProgress,
@@ -113,6 +114,20 @@ describe("부진지표 판정과 차이(%p)", () => {
   it("차이(%p)는 부진이면 음수", () => {
     expect(calcGap(40, 50.1)).toBe(-10.1);
     expect(calcGap(60, 50.1)).toBe(9.9);
+  });
+});
+
+describe("hasMissingNote (보완사항이 빠진 부진지표)", () => {
+  it("부진인데 보완사항이 없거나 공백뿐이면 true", () => {
+    expect(hasMissingNote(makeIndicator(), "delayed")).toBe(true);
+    expect(hasMissingNote(makeIndicator({ note: "   " }), "delayed")).toBe(true);
+  });
+  it("부진이어도 보완사항이 있으면 false", () => {
+    expect(hasMissingNote(makeIndicator({ note: "집중 관리" }), "delayed")).toBe(false);
+  });
+  it("정상·판정 보류는 보완사항이 없어도 false", () => {
+    expect(hasMissingNote(makeIndicator(), "normal")).toBe(false);
+    expect(hasMissingNote(makeIndicator(), "pending")).toBe(false);
   });
 });
 

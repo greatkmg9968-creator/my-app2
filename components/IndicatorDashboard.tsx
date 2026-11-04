@@ -13,7 +13,12 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import IndicatorForm from "@/components/IndicatorForm";
 import IndicatorTable from "@/components/IndicatorTable";
 import { useBeforeUnloadWarning } from "@/components/useBeforeUnloadWarning";
-import { calcElapsedRate, evaluateIndicator, toDateString } from "@/lib/calc";
+import {
+  calcElapsedRate,
+  evaluateIndicator,
+  hasMissingNote,
+  toDateString,
+} from "@/lib/calc";
 import {
   filterRows,
   hasActiveFilters,
@@ -174,6 +179,9 @@ export default function IndicatorDashboard({
   const delayedCount = rows?.filter((r) => r.evaluation.status === "delayed").length ?? 0;
   const normalCount = rows?.filter((r) => r.evaluation.status === "normal").length ?? 0;
   const pendingCount = rows?.filter((r) => r.evaluation.status === "pending").length ?? 0;
+  // 부진인데 보완사항이 비어 있는 지표 수. (자료 기준일을 바꾸면 새로 생길 수 있다)
+  const missingNoteCount =
+    rows?.filter((r) => hasMissingNote(r.indicator, r.evaluation.status)).length ?? 0;
 
   return (
     <>
@@ -220,6 +228,18 @@ export default function IndicatorDashboard({
             <SummaryCard label="정상" count={normalCount} />
             <SummaryCard label="판정 보류" count={pendingCount} />
           </section>
+
+          {/* 보완사항이 빠진 부진지표 알림 */}
+          {missingNoteCount > 0 && (
+            <p
+              role="status"
+              data-testid="missing-note-alert"
+              className="mb-4 rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm"
+            >
+              <strong>보완사항을 입력해야 하는 부진지표가 {missingNoteCount}건 있습니다.</strong>{" "}
+              표에서 &quot;보완사항 입력 필요&quot; 버튼을 눌러 보완사항을 적어 주세요.
+            </p>
+          )}
 
           {/* ④ 도구 줄: 지표 직접 입력 */}
           <section
@@ -367,7 +387,7 @@ export default function IndicatorDashboard({
           key={formTarget.mode === "edit" ? `edit-${formTarget.index}` : "add"}
           branch={branch}
           initial={formTarget.mode === "edit" ? indicators[formTarget.index] : undefined}
-          defaultEvalDate={referenceDate}
+          referenceDate={referenceDate}
           onSubmit={handleSubmit}
           onCancel={() => setFormTarget(null)}
         />

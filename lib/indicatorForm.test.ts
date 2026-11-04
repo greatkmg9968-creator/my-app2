@@ -1,7 +1,9 @@
 // Plan SC: 작업 9 — 직접 입력 폼의 검사 규칙. 지표 구분 네 가지에 따라 입력해야 하는 칸이 달라진다.
 
 import { describe, expect, it } from "vitest";
+import { resolveProgress } from "./calc";
 import {
+  checkNoteRequired,
   emptyFormValues,
   needsDirectProgress,
   parseNumber,
@@ -189,6 +191,111 @@ describe("계량 지표에서 목표값 = 기준값인 경우", () => {
     expect(needsDirectProgress(quantitativeForm())).toBe(false);
     expect(needsDirectProgress(qualitativeForm())).toBe(true);
     expect(needsDirectProgress(emptyFormValues("2026-10-15"))).toBe(false);
+  });
+});
+
+// 기준일 2026-10-15는 연중 288일째로 경과율 78.9%다.
+const REFERENCE = "2026-10-15";
+
+describe("checkNoteRequired (부진지표는 보완사항 필수)", () => {
+  it("계량 지표: 진척률 60.0%는 경과율 78.9%보다 낮아 부진이므로 보완사항이 필수다", () => {
+    // 기준 1000 · 목표 1500 · 실적 1300 → 60.0%
+    const check = checkNoteRequired(quantitativeForm(), REFERENCE);
+    expect(check.required).toBe(true);
+    expect(check.message).toContain("60.0%");
+    expect(check.message).toContain("78.9%");
+  });
+  it("보완사항을 적으면(공백만 아니면) 필수가 풀린다", () => {
+    expect(checkNoteRequired(quantitativeForm({ note: "집중 관리" }), REFERENCE).required).toBe(false);
+    expect(checkNoteRequired(quantitativeForm({ note: "   " }), REFERENCE).required).toBe(true);
+  });
+  it("정상 지표는 보완사항이 없어도 된다", () => {
+    // 실적 1450 → 90.0% ≥ 78.9%
+    expect(checkNoteRequired(quantitativeForm({ actualValue: "1450" }), REFERENCE).required).toBe(false);
+  });
+  it("경과율과 같으면 정상이라 필수가 아니다 (78.9%)", () => {
+    expect(
+      checkNoteRequired(qualitativeForm({ progress: "78.9" }), REFERENCE).required,
+    ).toBe(false);
+    expect(
+      checkNoteRequired(qualitativeForm({ progress: "78.8" }), REFERENCE).required,
+    ).toBe(true);
+  });
+  it("비계량 지표는 직접 입력한 진척률로 판단한다", () => {
+    expect(checkNoteRequired(qualitativeForm({ progress: "70" }), REFERENCE).required).toBe(true);
+    expect(checkNoteRequired(qualitativeForm({ progress: "90" }), REFERENCE).required).toBe(false);
+  });
+  it("진척률을 아직 알 수 없으면(입력 중, 판정 보류) 판단하지 않는다", () => {
+    expect(checkNoteRequired(quantitativeForm({ actualValue: "" }), REFERENCE).required).toBe(false);
+    expect(
+      checkNoteRequired(
+        quantitativeForm({ baseValue: "10", targetValue: "10", actualValue: "12" }),
+        REFERENCE,
+      ).required,
+    ).toBe(false);
+    expect(checkNoteRequired(emptyFormValues(REFERENCE), REFERENCE).required).toBe(false);
+  });
+  it("자료 기준일이 올바르지 않으면 판단하지 않는다", () => {
+    expect(checkNoteRequired(quantitativeForm(), "").required).toBe(false);
+    expect(checkNoteRequired(quantitativeForm(), "2026-02-30").required).toBe(false);
+  });
+  it("기준일이 지나 경과율이 올라가면 정상이던 지표가 부진이 된다", () => {
+    // 진척률 80.0% (기준 0 · 목표 100 · 실적 80)
+    const form = quantitativeForm({ baseValue: "0", targetValue: "100", actualValue: "80" });
+    expect(checkNoteRequired(form, "2026-10-15").required).toBe(false); // 78.9%
+    expect(checkNoteRequired(form, "2026-11-04").required).toBe(true); // 84.4%
+  });
+  it("진척률이 200%를 넘는 계산값도 정상으로 판단한다", () => {
+    expect(
+      checkNoteRequired(quantitativeForm({ actualValue: "3000" }), REFERENCE).required,
+    ).toBe(false);
+  });
+});
+
+describe("validateIndicatorForm — 자료 기준일을 주면 부진지표 보완사항을 검사한다", () => {
+  it("부진인데 보완사항이 비어 있으면 저장할 수 없다", () => {
+    const { errors, indicator } = validateIndicatorForm(quantitativeForm(), BRANCH, REFERENCE);
+    expect(errors.note).toContain("부진지표");
+    expect(indicator).toBeNull();
+  });
+  it("보완사항을 적으면 저장된다", () => {
+    const { errors, indicator } = validateIndicatorForm(
+      quantitativeForm({ note: "법인 예금 유치 집중" }),
+      BRANCH,
+      REFERENCE,
+    );
+    expect(errors).toEqual({});
+    expect(indicator?.note).toBe("법인 예금 유치 집중");
+  });
+  it("자료 기준일을 주지 않으면 이 검사는 하지 않는다", () => {
+    const { errors, indicator } = validateIndicatorForm(quantitativeForm(), BRANCH);
+    expect(errors.note).toBeUndefined();
+    expect(indicator).not.toBeNull();
+  });
+  it("다른 오류와 함께 있어도 보완사항 오류가 따로 표시된다", () => {
+    const { errors } = validateIndicatorForm(
+      quantitativeForm({ name: "" }),
+      BRANCH,
+      REFERENCE,
+    );
+    expect(errors.name).toBeDefined();
+    expect(errors.note).toBeDefined();
+  });
+});
+
+describe("목표값을 바꾸면 바뀐 목표값 기준으로 진척률이 다시 계산된다", () => {
+  it("저장된 지표에는 옛 진척률이 남지 않고, 수정하면 새 목표값으로 계산된다", () => {
+    const original = validateIndicatorForm(quantitativeForm({ note: "메모" }), BRANCH).indicator;
+    expect(original?.progress).toBeUndefined();
+    expect(resolveProgress(original!)).toBe(60); // 기준 1000 · 목표 1500 · 실적 1300
+
+    // 수정 창을 열어 목표값만 1500 → 1400으로 바꿔 저장
+    const edited = validateIndicatorForm(
+      { ...valuesFromIndicator(original!), targetValue: "1400" },
+      BRANCH,
+    ).indicator;
+    expect(edited?.progress).toBeUndefined();
+    expect(resolveProgress(edited!)).toBe(75); // (1300−1000) ÷ (1400−1000)
   });
 });
 

@@ -4,7 +4,7 @@
 // 어떤 지표를 어떤 순서로 보여줄지는 위(IndicatorDashboard)에서 정하고, 이 표는 받은 줄을 그대로 그린다.
 
 import ProgressBar from "@/components/ProgressBar";
-import type { IndicatorEvaluation } from "@/lib/calc";
+import { hasMissingNote, type IndicatorEvaluation } from "@/lib/calc";
 import type { IndicatorRow } from "@/lib/filterSort";
 import {
   EMPTY_MARK,
@@ -132,7 +132,26 @@ export default function IndicatorTable({ rows, onEdit, onDelete }: IndicatorTabl
                 <ProgressCell evaluation={evaluation} />
               </td>
               <td className={NUMBER_CELL}>{formatPercent(indicator.expected)}</td>
-              <td className={CELL}>{indicator.note ?? EMPTY_MARK}</td>
+              <td className={CELL}>
+                {hasMissingNote(indicator, evaluation.status) ? (
+                  // 부진인데 보완사항이 비어 있다. (예: 자료 기준일을 바꿔 새로 부진이 된 지표)
+                  onEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => onEdit(index)}
+                      className="rounded border border-red-600 px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-500/10 dark:text-red-300"
+                    >
+                      보완사항 입력 필요
+                    </button>
+                  ) : (
+                    <span className="text-xs font-medium text-red-700 dark:text-red-300">
+                      보완사항 입력 필요
+                    </span>
+                  )
+                ) : (
+                  (indicator.note ?? EMPTY_MARK)
+                )}
+              </td>
               {showActions && (
                 <td className={`${CELL} whitespace-nowrap`}>
                   <div className="flex gap-1">

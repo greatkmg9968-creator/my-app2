@@ -3,11 +3,13 @@
 // Design Ref: §2.3 지표 입력 창 — "지표 추가"·"수정"을 누르면 뜨는 창.
 // Plan SC: 작업 9 — 지표 직접 입력 폼. 지표 구분(부점 계량 / 부점 비계량 / 공통 계량 / 공통 비계량)을 고른 뒤
 //          그 안의 세부 평가항목을 직접 입력한다. 계량은 수치 칸, 비계량은 진척률 칸을 보여준다.
+// Plan SC: 작업 10 — 부진지표인데 보완사항이 비어 있으면 저장 버튼이 눌리지 않고 이유를 안내한다.
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { calcProgress } from "@/lib/calc";
 import { formatPercent } from "@/lib/format";
 import {
+  checkNoteRequired,
   emptyFormValues,
   needsDirectProgress,
   parseNumber,
@@ -28,8 +30,11 @@ interface IndicatorFormProps {
   branch: string;
   /** 수정할 지표. 없으면 새 지표를 추가한다. */
   initial?: Indicator;
-  /** 새 지표의 평가 기준일 기본값 (화면의 자료 기준일) */
-  defaultEvalDate: string;
+  /**
+   * 화면의 자료 기준일. 새 지표의 평가 기준일 기본값이 되고,
+   * 이 날짜의 경과율로 부진지표 여부(= 보완사항 필수 여부)를 판단한다.
+   */
+  referenceDate: string;
   /** 검사를 통과한 지표를 넘겨준다. */
   onSubmit: (indicator: Indicator) => void;
   /** 취소하거나 Esc를 눌렀을 때 */
@@ -74,14 +79,14 @@ function Field({
 export default function IndicatorForm({
   branch,
   initial,
-  defaultEvalDate,
+  referenceDate,
   onSubmit,
   onCancel,
 }: IndicatorFormProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const baseId = useId();
   const [values, setValues] = useState<IndicatorFormValues>(() =>
-    initial ? valuesFromIndicator(initial) : emptyFormValues(defaultEvalDate),
+    initial ? valuesFromIndicator(initial) : emptyFormValues(referenceDate),
   );
   const [errors, setErrors] = useState<IndicatorFormErrors>({});
 
@@ -109,9 +114,12 @@ export default function IndicatorForm({
       ? calcProgress(baseNumber, targetNumber, actualNumber)
       : null;
 
+  // 부진지표인데 보완사항이 비어 있으면 저장할 수 없다. (입력하는 동안 바로 판단해서 보여준다)
+  const noteCheck = checkNoteRequired(values, referenceDate);
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = validateIndicatorForm(values, branch);
+    const result = validateIndicatorForm(values, branch, referenceDate);
     setErrors(result.errors);
     if (result.indicator) {
       onSubmit(result.indicator);
@@ -361,13 +369,24 @@ export default function IndicatorForm({
             />
           </Field>
 
-          <Field id={ids.note} label="보완사항" hint="비워 둘 수 있습니다.">
+          <Field
+            id={ids.note}
+            label={noteCheck.required ? "보완사항 (필수)" : "보완사항"}
+            hint={
+              noteCheck.required
+                ? undefined
+                : "정상 지표는 비워 둘 수 있습니다. 부진지표(진척률이 경과율보다 낮은 지표)는 반드시 적어야 합니다."
+            }
+            error={noteCheck.message ?? undefined}
+          >
             <textarea
               id={ids.note}
               rows={3}
               value={values.note}
               onChange={set("note")}
               className={INPUT_CLASS}
+              aria-invalid={noteCheck.required ? true : undefined}
+              aria-describedby={noteCheck.required ? `${ids.note}-error` : undefined}
             />
           </Field>
         </div>
@@ -382,7 +401,10 @@ export default function IndicatorForm({
           </button>
           <button
             type="submit"
-            className="rounded bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:opacity-90"
+            // 부진지표인데 보완사항이 비어 있으면 눌리지 않는다. 이유는 보완사항 칸 아래에 보인다.
+            disabled={noteCheck.required}
+            aria-describedby={noteCheck.required ? `${ids.note}-error` : undefined}
+            className="rounded bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {initial ? "수정 저장" : "지표 추가"}
           </button>
