@@ -56,6 +56,14 @@ function isLeapYear(year: number): boolean {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 }
 
+/** Date를 "YYYY-MM-DD" 문자열로 바꾼다. (그 컴퓨터의 현지 날짜 기준) */
+export function toDateString(date: Date): string {
+  const year = String(date.getFullYear()).padStart(4, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 /** "YYYY-MM-DD" 문자열을 연·월·일로 나눈다. 없는 날짜(예: 2026-02-30)면 RangeError */
 function parseDate(date: string): { year: number; month: number; day: number } {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);

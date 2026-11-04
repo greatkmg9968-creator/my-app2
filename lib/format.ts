@@ -10,6 +10,11 @@ export function formatNumber(value: number | undefined): string {
   return value.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 }
 
+/** 부진지표의 차이(%p, 음수) 문구. (예: -12.3 → "경과율보다 12.3%p 낮음") */
+export function formatBehindText(gap: number): string {
+  return `경과율보다 ${Math.abs(gap).toFixed(1)}%p 낮음`;
+}
+
 /** 퍼센트: 소수 첫째 자리까지 항상 보여준다. (예: 87.5%, 50.0%) */
 export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;

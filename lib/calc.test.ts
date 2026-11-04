@@ -13,6 +13,7 @@ import {
   isInPercentRange,
   resolveProgress,
   round1,
+  toDateString,
 } from "./calc";
 
 /** 테스트용 지표. 필요한 값만 덮어써서 쓴다. */
@@ -84,6 +85,16 @@ describe("calcElapsedRate (일 단위 경과율)", () => {
     expect(() => calcElapsedRate("2026-2-3")).toThrow(RangeError);
     expect(() => calcElapsedRate("2026-02-30")).toThrow(RangeError);
     expect(() => calcElapsedRate("2026-13-01")).toThrow(RangeError);
+  });
+});
+
+describe("toDateString (날짜 → 문자열)", () => {
+  it("월·일이 한 자리여도 두 자리로 맞춘다", () => {
+    expect(toDateString(new Date(2026, 0, 5))).toBe("2026-01-05");
+    expect(toDateString(new Date(2026, 9, 15))).toBe("2026-10-15");
+  });
+  it("만든 문자열을 경과율 계산에 그대로 쓸 수 있다", () => {
+    expect(calcElapsedRate(toDateString(new Date(2026, 11, 31)))).toBe(100);
   });
 });
 

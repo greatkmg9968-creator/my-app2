@@ -1,7 +1,20 @@
 // 표에 보이는 숫자 모양을 확인한다.
 
 import { describe, expect, it } from "vitest";
-import { EMPTY_MARK, formatNumber, formatPercent } from "./format";
+import {
+  EMPTY_MARK,
+  formatBehindText,
+  formatNumber,
+  formatPercent,
+} from "./format";
+
+describe("formatBehindText", () => {
+  it("부진지표의 차이를 '경과율보다 N%p 낮음'으로 보여준다", () => {
+    expect(formatBehindText(-12.3)).toBe("경과율보다 12.3%p 낮음");
+    expect(formatBehindText(-0.1)).toBe("경과율보다 0.1%p 낮음");
+    expect(formatBehindText(-38.9)).toBe("경과율보다 38.9%p 낮음");
+  });
+});
 
 describe("formatNumber", () => {
   it("값이 없으면 '-'를 돌려준다", () => {
