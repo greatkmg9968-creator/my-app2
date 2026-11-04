@@ -9,7 +9,7 @@
 // 필터·정렬은 보이는 목록만 바꾼다. 요약 카드의 개수는 항상 전체 지표 기준이다.
 // 지표 목록은 이 화면의 메모리에만 있고 저장하지 않는다. (새로고침하면 처음 상태로 돌아간다)
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import IndicatorForm from "@/components/IndicatorForm";
 import IndicatorTable from "@/components/IndicatorTable";
 import { useBeforeUnloadWarning } from "@/components/useBeforeUnloadWarning";
@@ -29,6 +29,8 @@ import {
   type SortDirection,
   type SortKey,
 } from "@/lib/filterSort";
+import { checkUploadFile, TEMPLATE_FILE_NAME } from "@/lib/excelFormat";
+import { formatUploadErrors, parseUploadedSheet } from "@/lib/excelRows";
 import { EMPTY_MARK, formatPercent } from "@/lib/format";
 import {
   INDICATOR_CATEGORIES,
@@ -38,6 +40,29 @@ import {
 
 /** 지금 열려 있는 입력 창. 없으면 null */
 type FormTarget = { mode: "add" } | { mode: "edit"; index: number } | null;
+
+/** 엑셀 올리기·양식 받기 결과 안내. 성공이면 한 줄, 실패면 어느 줄이 왜 안 되는지 목록으로 보여준다. */
+interface UploadNotice {
+  kind: "success" | "error";
+  title: string;
+  details: string[];
+}
+
+/** 오류 목록을 화면에 보여줄 최대 줄 수. 넘으면 "외 N건"으로 줄인다. */
+const MAX_NOTICE_DETAILS = 15;
+
+/** 엑셀 파일 내용을 브라우저가 내려받게 한다. */
+function downloadBytes(bytes: Uint8Array, fileName: string): void {
+  const blob = new Blob([bytes as BlobPart], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 /** 도구 줄의 일반 버튼 모양 */
 const TOOL_BUTTON =
@@ -166,6 +191,95 @@ export default function IndicatorDashboard({
     setIndicators((current) => current.filter((_, i) => i !== index));
   };
 
+  // 엑셀 양식 받기·올리기
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadNotice, setUploadNotice] = useState<UploadNotice | null>(null);
+  const [excelBusy, setExcelBusy] = useState(false);
+
+  /** 엑셀 양식(.xlsx)을 만들어 내려받는다. 양식에는 내 부점 이름이 미리 적혀 있다. */
+  const handleDownloadTemplate = async () => {
+    setExcelBusy(true);
+    setUploadNotice(null);
+    try {
+      // 엑셀 도구(ExcelJS)는 크기가 커서 필요할 때만 불러온다.
+      const { buildTemplate } = await import("@/lib/excel");
+      downloadBytes(await buildTemplate(branch), TEMPLATE_FILE_NAME);
+      setUploadNotice({
+        kind: "success",
+        title: `엑셀 양식을 내려받았습니다. (${TEMPLATE_FILE_NAME})`,
+        details: ["엑셀에서 \"지표\" 시트에 지표를 적고 저장한 뒤, \"엑셀 올리기\"로 올려 주세요. 작성 방법은 \"작성 안내\" 시트에 있습니다."],
+      });
+    } catch {
+      setUploadNotice({
+        kind: "error",
+        title: "엑셀 양식을 만들지 못했습니다.",
+        details: ["잠시 뒤 다시 시도해 주세요."],
+      });
+    } finally {
+      setExcelBusy(false);
+    }
+  };
+
+  /** 고른 엑셀 파일을 검사해서, 모두 통과하면 지표 목록을 올린 지표로 바꾼다. */
+  const handleFileChosen = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // 같은 파일을 다시 고쳐서 올려도 이벤트가 오도록 선택값을 비워 둔다.
+    event.target.value = "";
+    if (!file) return;
+
+    const fileError = checkUploadFile(file);
+    if (fileError) {
+      setUploadNotice({ kind: "error", title: "이 파일은 올릴 수 없습니다.", details: [fileError] });
+      return;
+    }
+
+    setExcelBusy(true);
+    setUploadNotice(null);
+    try {
+      const { readSheet } = await import("@/lib/excel");
+      const sheet = await readSheet(await file.arrayBuffer());
+      const result = parseUploadedSheet(sheet, { branch, referenceDate });
+
+      if (!result.ok) {
+        const lines = formatUploadErrors(result.errors);
+        const shown = lines.slice(0, MAX_NOTICE_DETAILS);
+        if (lines.length > shown.length) shown.push(`…외 ${lines.length - shown.length}건`);
+        setUploadNotice({
+          kind: "error",
+          title: `올리지 못했습니다. 고칠 곳이 ${lines.length}건 있습니다. (기존 지표는 그대로입니다)`,
+          details: shown,
+        });
+        return;
+      }
+
+      // 올리면 기존 지표가 모두 바뀌므로 먼저 확인한다.
+      if (
+        indicators.length > 0 &&
+        !window.confirm(
+          `기존 지표 ${indicators.length}건이 모두 사라지고, 올린 파일의 지표 ${result.indicators.length}건으로 바뀝니다. 계속할까요?`,
+        )
+      ) {
+        setUploadNotice({ kind: "error", title: "올리기를 취소했습니다. (기존 지표는 그대로입니다)", details: [] });
+        return;
+      }
+
+      setIndicators(result.indicators);
+      setUploadNotice({
+        kind: "success",
+        title: `엑셀 파일에서 지표 ${result.indicators.length}건을 올렸습니다.`,
+        details: [],
+      });
+    } catch {
+      setUploadNotice({
+        kind: "error",
+        title: "엑셀 파일을 읽지 못했습니다.",
+        details: ["엑셀에서 만든 .xlsx 파일이 맞는지, 파일이 손상되지 않았는지 확인해 주세요."],
+      });
+    } finally {
+      setExcelBusy(false);
+    }
+  };
+
   const handleClearAll = () => {
     if (!window.confirm(`지표 ${indicators.length}건을 모두 지울까요? (샘플 지표도 함께 지워집니다)`)) {
       return;
@@ -262,10 +376,69 @@ export default function IndicatorDashboard({
             >
               전체 지우기
             </button>
+            <button
+              type="button"
+              onClick={handleDownloadTemplate}
+              disabled={excelBusy}
+              className={TOOL_BUTTON}
+            >
+              엑셀 양식 받기
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={excelBusy}
+              className={TOOL_BUTTON}
+            >
+              엑셀 올리기
+            </button>
+            {/* 숨겨 둔 파일 선택 상자. "엑셀 올리기" 버튼이 대신 눌러 준다. */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={handleFileChosen}
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="올릴 엑셀 파일 선택"
+              data-testid="excel-file-input"
+            />
             <p className="text-sm text-foreground/70" data-testid="indicator-count">
               등록된 지표 {indicators.length} / 최대 {MAX_INDICATORS}개
               {isFull && " — 가득 찼습니다. 새 지표를 추가하려면 먼저 지표를 삭제해 주세요."}
             </p>
+
+            {/* 엑셀 양식 받기·올리기 결과 */}
+            {uploadNotice && (
+              <div
+                role={uploadNotice.kind === "error" ? "alert" : "status"}
+                data-testid="upload-notice"
+                data-kind={uploadNotice.kind}
+                className={`w-full rounded-lg border px-4 py-3 text-sm ${
+                  uploadNotice.kind === "error"
+                    ? "border-red-600/50 bg-red-500/10"
+                    : "border-emerald-600/50 bg-emerald-500/10"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-medium">{uploadNotice.title}</p>
+                  <button
+                    type="button"
+                    onClick={() => setUploadNotice(null)}
+                    className="shrink-0 rounded border border-black/20 px-2 py-0.5 text-xs hover:bg-black/5 dark:border-white/25 dark:hover:bg-white/10"
+                  >
+                    닫기
+                  </button>
+                </div>
+                {uploadNotice.details.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+                    {uploadNotice.details.map((line, index) => (
+                      <li key={index}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </section>
 
           {/* ④ 필터·정렬 */}
