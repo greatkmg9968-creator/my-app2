@@ -2,6 +2,34 @@
 // Plan SC: 작업 1 — 지표 한 건의 데이터 구조(타입) 정의
 
 /**
+ * 지표 구분(큰 범주) 네 가지.
+ * - 부점/공통: 부점이 자체로 정한 지표인지, 모든 부점에 공통으로 적용되는 지표인지
+ * - 계량/비계량: 수치(기준값·목표값·실적값)로 평가하는지, 수치로 나타낼 수 없어 진척률을 직접 입력하는지
+ */
+export const INDICATOR_CATEGORIES = [
+  "부점 계량",
+  "부점 비계량",
+  "공통 계량",
+  "공통 비계량",
+] as const;
+
+/** 한 화면에서 다룰 수 있는 지표의 최대 개수 */
+export const MAX_INDICATORS = 30;
+
+/** 지표 구분 하나 */
+export type IndicatorCategory = (typeof INDICATOR_CATEGORIES)[number];
+
+/** 계량 지표(수치로 평가)면 true, 비계량 지표(진척률 직접 입력)면 false */
+export function isQuantitativeCategory(category: IndicatorCategory): boolean {
+  return category === "부점 계량" || category === "공통 계량";
+}
+
+/** 문자열이 올바른 지표 구분이면 true (엑셀 업로드 등 바깥에서 들어온 값을 검사할 때 쓴다) */
+export function isIndicatorCategory(value: string): value is IndicatorCategory {
+  return (INDICATOR_CATEGORIES as readonly string[]).includes(value);
+}
+
+/**
  * 성과평가 지표 한 건.
  *
  * - 지표 데이터는 앱에 저장하지 않고 브라우저 메모리에서만 다룬다.
@@ -12,13 +40,13 @@ export interface Indicator {
   /** 부점. 로그인 계정의 부점(app_metadata)과 같아야 하며 입력 창에서는 자동으로 채운다. */
   branch: string;
 
-  /** 지표 구분. 필터에 사용한다. */
-  category: string;
+  /** 지표 구분(큰 범주): 부점 계량 / 부점 비계량 / 공통 계량 / 공통 비계량. 필터에 사용한다. */
+  category: IndicatorCategory;
 
   /** 지표명 */
   name: string;
 
-  /** 평가항목 */
+  /** 세부 평가항목. 지표 구분 안에서 담당자가 직접 입력한다. */
   item: string;
 
   /** 평가방법 */

@@ -3,11 +3,14 @@
 // Design Ref: §2.2 ②③④⑤ — 기준 정보(자료 기준일·경과율·저장 안 됨 안내), 요약 카드, 필터·정렬, 지표 표를 한 화면에 모은다.
 // Plan SC: 작업 6 — 자료 기준일·경과율 표시, 부진지표 강조, 판정 보류 개수, 저장 안 됨 안내와 확인 창
 // Plan SC: 작업 8 — 필터(부진지표만, 지표 구분별)와 정렬(진척률, 차이, 지표명, 배점)
+// Plan SC: 작업 9 — 지표 직접 입력(추가·수정·삭제, 최대 30개). 지표 구분은 부점/공통 × 계량/비계량 네 가지다.
 //
 // 자료 기준일은 화면에서 바꿀 수 있고(기본값은 오늘), 바꾸면 경과율과 부진 판정이 바로 다시 계산된다.
 // 필터·정렬은 보이는 목록만 바꾼다. 요약 카드의 개수는 항상 전체 지표 기준이다.
+// 지표 목록은 이 화면의 메모리에만 있고 저장하지 않는다. (새로고침하면 처음 상태로 돌아간다)
 
 import { useMemo, useState, useSyncExternalStore } from "react";
+import IndicatorForm from "@/components/IndicatorForm";
 import IndicatorTable from "@/components/IndicatorTable";
 import { useBeforeUnloadWarning } from "@/components/useBeforeUnloadWarning";
 import { calcElapsedRate, evaluateIndicator, toDateString } from "@/lib/calc";
@@ -16,14 +19,24 @@ import {
   hasActiveFilters,
   NO_FILTERS,
   sortRows,
-  uniqueCategories,
   type IndicatorRow,
   type RowFilters,
   type SortDirection,
   type SortKey,
 } from "@/lib/filterSort";
 import { EMPTY_MARK, formatPercent } from "@/lib/format";
-import type { Indicator } from "@/types/indicator";
+import {
+  INDICATOR_CATEGORIES,
+  MAX_INDICATORS,
+  type Indicator,
+} from "@/types/indicator";
+
+/** 지금 열려 있는 입력 창. 없으면 null */
+type FormTarget = { mode: "add" } | { mode: "edit"; index: number } | null;
+
+/** 도구 줄의 일반 버튼 모양 */
+const TOOL_BUTTON =
+  "rounded border border-black/20 px-3 py-1 text-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/25 dark:hover:bg-white/10";
 
 /** 정렬 기준 선택지 */
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
@@ -39,7 +52,10 @@ const CONTROL_CLASS =
   "rounded border border-black/20 bg-background px-2 py-1 text-sm dark:border-white/25";
 
 interface IndicatorDashboardProps {
-  indicators: Indicator[];
+  /** 처음에 보여줄 지표. 화면에서 추가·수정·삭제하면 이 화면 안에서만 바뀐다. */
+  initialIndicators: Indicator[];
+  /** 로그인한 사용자의 부점. 새 지표에 자동으로 넣는다. */
+  branch: string;
 }
 
 // 오늘 날짜는 브라우저에서만 안다. 서버에서 처음 그릴 때는 빈 값을 쓰고,
@@ -85,7 +101,15 @@ function SummaryCard({
   );
 }
 
-export default function IndicatorDashboard({ indicators }: IndicatorDashboardProps) {
+export default function IndicatorDashboard({
+  initialIndicators,
+  branch,
+}: IndicatorDashboardProps) {
+  // 지표 목록. 이 화면의 메모리에만 두고 저장하지 않는다.
+  const [indicators, setIndicators] = useState<Indicator[]>(initialIndicators);
+  const [formTarget, setFormTarget] = useState<FormTarget>(null);
+  const isFull = indicators.length >= MAX_INDICATORS;
+
   const today = useSyncExternalStore(subscribeNothing, getToday, getTodayOnServer);
   // 사용자가 고른 날짜. 아직 고르지 않았으면 오늘 날짜를 쓴다.
   const [pickedDate, setPickedDate] = useState<string | null>(null);
@@ -97,9 +121,10 @@ export default function IndicatorDashboard({ indicators }: IndicatorDashboardPro
 
   const rows: IndicatorRow[] | null = useMemo(() => {
     if (elapsedRate === null) return null;
-    return indicators.map((indicator) => ({
+    return indicators.map((indicator, index) => ({
       indicator,
       evaluation: evaluateIndicator(indicator, referenceDate),
+      index,
     }));
   }, [indicators, referenceDate, elapsedRate]);
 
@@ -108,7 +133,6 @@ export default function IndicatorDashboard({ indicators }: IndicatorDashboardPro
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
-  const categories = useMemo(() => uniqueCategories(rows ?? []), [rows]);
   const visibleRows = useMemo(
     () => (rows === null ? null : sortRows(filterRows(rows, filters), sortKey, sortDirection)),
     [rows, filters, sortKey, sortDirection],
@@ -116,6 +140,36 @@ export default function IndicatorDashboard({ indicators }: IndicatorDashboardPro
 
   // 지표 값은 저장되지 않으므로, 지표가 있는 동안에는 새로고침·창 닫기 전에 확인 창을 띄운다.
   useBeforeUnloadWarning(indicators.length > 0);
+
+  /** 입력 창에서 검사를 통과한 지표를 목록에 넣는다. (추가면 맨 뒤에, 수정이면 그 자리에) */
+  const handleSubmit = (indicator: Indicator) => {
+    if (formTarget?.mode === "edit") {
+      const { index } = formTarget;
+      setIndicators((current) => current.map((item, i) => (i === index ? indicator : item)));
+    } else {
+      setIndicators((current) =>
+        current.length >= MAX_INDICATORS ? current : [...current, indicator],
+      );
+    }
+    setFormTarget(null);
+  };
+
+  const handleDelete = (index: number) => {
+    const target = indicators[index];
+    if (!target) return;
+    if (!window.confirm(`"${target.name}" 지표를 삭제할까요?`)) return;
+    setIndicators((current) => current.filter((_, i) => i !== index));
+  };
+
+  const handleClearAll = () => {
+    if (!window.confirm(`지표 ${indicators.length}건을 모두 지울까요? (샘플 지표도 함께 지워집니다)`)) {
+      return;
+    }
+    setIndicators([]);
+    setFilters(NO_FILTERS);
+    setSortKey("default");
+    setSortDirection("asc");
+  };
 
   const delayedCount = rows?.filter((r) => r.evaluation.status === "delayed").length ?? 0;
   const normalCount = rows?.filter((r) => r.evaluation.status === "normal").length ?? 0;
@@ -167,6 +221,33 @@ export default function IndicatorDashboard({ indicators }: IndicatorDashboardPro
             <SummaryCard label="판정 보류" count={pendingCount} />
           </section>
 
+          {/* ④ 도구 줄: 지표 직접 입력 */}
+          <section
+            aria-label="지표 입력 도구"
+            className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-black/10 p-4 dark:border-white/15"
+          >
+            <button
+              type="button"
+              onClick={() => setFormTarget({ mode: "add" })}
+              disabled={isFull}
+              className="rounded bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              지표 추가
+            </button>
+            <button
+              type="button"
+              onClick={handleClearAll}
+              disabled={indicators.length === 0}
+              className={TOOL_BUTTON}
+            >
+              전체 지우기
+            </button>
+            <p className="text-sm text-foreground/70" data-testid="indicator-count">
+              등록된 지표 {indicators.length} / 최대 {MAX_INDICATORS}개
+              {isFull && " — 가득 찼습니다. 새 지표를 추가하려면 먼저 지표를 삭제해 주세요."}
+            </p>
+          </section>
+
           {/* ④ 필터·정렬 */}
           <section
             aria-label="필터와 정렬"
@@ -189,12 +270,15 @@ export default function IndicatorDashboard({ indicators }: IndicatorDashboardPro
               <select
                 value={filters.category}
                 onChange={(event) =>
-                  setFilters((current) => ({ ...current, category: event.target.value }))
+                  setFilters((current) => ({
+                    ...current,
+                    category: event.target.value as RowFilters["category"],
+                  }))
                 }
                 className={CONTROL_CLASS}
               >
                 <option value="">전체</option>
-                {categories.map((category) => (
+                {INDICATOR_CATEGORIES.map((category) => (
                   <option key={category} value={category}>
                     {category}
                   </option>
@@ -263,12 +347,30 @@ export default function IndicatorDashboard({ indicators }: IndicatorDashboardPro
               role="status"
               className="rounded-lg border border-dashed border-black/20 p-8 text-center text-sm dark:border-white/25"
             >
-              조건에 맞는 지표가 없습니다. 위의 필터를 바꾸거나 &quot;조건 초기화&quot;를 눌러 주세요.
+              {indicators.length === 0
+                ? "등록된 지표가 없습니다. 위의 \"지표 추가\"를 눌러 지표를 입력해 주세요."
+                : "조건에 맞는 지표가 없습니다. 위의 필터를 바꾸거나 \"조건 초기화\"를 눌러 주세요."}
             </p>
           ) : (
-            <IndicatorTable rows={visibleRows} />
+            <IndicatorTable
+              rows={visibleRows}
+              onEdit={(index) => setFormTarget({ mode: "edit", index })}
+              onDelete={handleDelete}
+            />
           )}
         </>
+      )}
+
+      {/* 지표 입력 창 (추가·수정) */}
+      {formTarget && (
+        <IndicatorForm
+          key={formTarget.mode === "edit" ? `edit-${formTarget.index}` : "add"}
+          branch={branch}
+          initial={formTarget.mode === "edit" ? indicators[formTarget.index] : undefined}
+          defaultEvalDate={referenceDate}
+          onSubmit={handleSubmit}
+          onCancel={() => setFormTarget(null)}
+        />
       )}
     </>
   );

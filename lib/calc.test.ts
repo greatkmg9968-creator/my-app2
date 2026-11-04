@@ -20,7 +20,7 @@ import {
 function makeIndicator(overrides: Partial<Indicator> = {}): Indicator {
   return {
     branch: "테스트부점",
-    category: "영업",
+    category: "부점 계량",
     name: "테스트 지표",
     item: "항목",
     method: "방법",

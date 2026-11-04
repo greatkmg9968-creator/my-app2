@@ -1,5 +1,6 @@
 // Design Ref: §2.2 ⑤ 지표 표 — 모든 지표를 한 화면(한 표)에 보여준다. (최대 30행, 쪽 나누기 없음)
 // Plan SC: 작업 5(표), 작업 6(부진지표 강조 + 경과율과의 차이(%p) + 판정 보류), 작업 7(진행 막대)
+// 작업 9: 줄마다 "수정"·"삭제" 버튼(관리 칸)을 둔다. 실제 수정·삭제는 위(IndicatorDashboard)가 한다.
 // 어떤 지표를 어떤 순서로 보여줄지는 위(IndicatorDashboard)에서 정하고, 이 표는 받은 줄을 그대로 그린다.
 
 import ProgressBar from "@/components/ProgressBar";
@@ -14,6 +15,10 @@ import {
 
 interface IndicatorTableProps {
   rows: IndicatorRow[];
+  /** "수정" 버튼을 눌렀을 때. 전체 목록에서의 지표 위치(index)를 넘겨준다. 없으면 관리 칸을 그리지 않는다. */
+  onEdit?: (index: number) => void;
+  /** "삭제" 버튼을 눌렀을 때. 전체 목록에서의 지표 위치(index)를 넘겨준다. */
+  onDelete?: (index: number) => void;
 }
 
 /**
@@ -75,7 +80,13 @@ const NUMBER_HEAD_CELL = "whitespace-nowrap px-3 py-2 text-right font-medium";
 const CELL = "px-3 py-2 align-top";
 const NUMBER_CELL = "whitespace-nowrap px-3 py-2 text-right align-top tabular-nums";
 
-export default function IndicatorTable({ rows }: IndicatorTableProps) {
+/** 관리 칸의 작은 버튼 모양 */
+const ACTION_BUTTON =
+  "rounded border border-black/20 px-2 py-0.5 text-xs hover:bg-black/5 dark:border-white/25 dark:hover:bg-white/10";
+
+export default function IndicatorTable({ rows, onEdit, onDelete }: IndicatorTableProps) {
+  const showActions = onEdit !== undefined || onDelete !== undefined;
+
   return (
     <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/15">
       <table className="w-full min-w-[960px] border-collapse text-sm">
@@ -84,9 +95,9 @@ export default function IndicatorTable({ rows }: IndicatorTableProps) {
         </caption>
         <thead className="bg-black/[.04] dark:bg-white/[.06]">
           <tr>
-            <th scope="col" className={HEAD_CELL}>구분</th>
+            <th scope="col" className={HEAD_CELL}>지표 구분</th>
             <th scope="col" className={HEAD_CELL}>지표명</th>
-            <th scope="col" className={HEAD_CELL}>평가항목</th>
+            <th scope="col" className={HEAD_CELL}>세부 평가항목</th>
             <th scope="col" className={HEAD_CELL}>평가방법</th>
             <th scope="col" className={NUMBER_HEAD_CELL}>배점</th>
             <th scope="col" className={NUMBER_HEAD_CELL}>목표</th>
@@ -94,13 +105,14 @@ export default function IndicatorTable({ rows }: IndicatorTableProps) {
             <th scope="col" className={NUMBER_HEAD_CELL}>진척률</th>
             <th scope="col" className={NUMBER_HEAD_CELL}>예상달성도</th>
             <th scope="col" className={HEAD_CELL}>보완사항</th>
+            {showActions && <th scope="col" className={HEAD_CELL}>관리</th>}
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ indicator, evaluation }, index) => (
+          {rows.map(({ indicator, evaluation, index }) => (
             <tr
-              // 지표에는 아직 고유 번호가 없어, 부점·지표명·순서로 구분한다.
-              key={`${indicator.branch}-${indicator.name}-${index}`}
+              // 지표에는 고유 번호가 없어, 전체 목록에서의 위치(index)로 구분한다.
+              key={index}
               // 부진지표는 붉은 배경과 왼쪽 굵은 선으로 강조한다. (색뿐 아니라 "부진" 글자도 함께 보여준다)
               className={
                 evaluation.status === "delayed"
@@ -121,6 +133,32 @@ export default function IndicatorTable({ rows }: IndicatorTableProps) {
               </td>
               <td className={NUMBER_CELL}>{formatPercent(indicator.expected)}</td>
               <td className={CELL}>{indicator.note ?? EMPTY_MARK}</td>
+              {showActions && (
+                <td className={`${CELL} whitespace-nowrap`}>
+                  <div className="flex gap-1">
+                    {onEdit && (
+                      <button
+                        type="button"
+                        className={ACTION_BUTTON}
+                        aria-label={`${indicator.name} 수정`}
+                        onClick={() => onEdit(index)}
+                      >
+                        수정
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        type="button"
+                        className={ACTION_BUTTON}
+                        aria-label={`${indicator.name} 삭제`}
+                        onClick={() => onDelete(index)}
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

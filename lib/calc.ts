@@ -84,6 +84,16 @@ function parseDate(date: string): { year: number; month: number; day: number } {
   return { year, month, day };
 }
 
+/** "YYYY-MM-DD" 형식의 실제로 있는 날짜면 true */
+export function isValidDateString(date: string): boolean {
+  try {
+    parseDate(date);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 경과율(%) = 연중 일수 ÷ 연간 일수 × 100, 소수 첫째 자리 반올림.
  * 연중 일수는 1월 1일을 1일째로 센다. 연간 일수는 평년 365, 윤년 366이다.

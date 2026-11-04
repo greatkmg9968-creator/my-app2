@@ -2,20 +2,21 @@
 // 샘플 30건을 기준일 2026-10-15(경과율 78.9%)로 평가해 확인한다. (부진 11 · 정상 16 · 판정 보류 3)
 
 import { describe, expect, it } from "vitest";
+import { INDICATOR_CATEGORIES } from "@/types/indicator";
 import { evaluateIndicator } from "./calc";
 import {
   filterRows,
   hasActiveFilters,
   NO_FILTERS,
   sortRows,
-  uniqueCategories,
   type IndicatorRow,
 } from "./filterSort";
 import { SAMPLE_INDICATORS, SAMPLE_REFERENCE_DATE } from "./sampleData";
 
-const rows: IndicatorRow[] = SAMPLE_INDICATORS.map((indicator) => ({
+const rows: IndicatorRow[] = SAMPLE_INDICATORS.map((indicator, index) => ({
   indicator,
   evaluation: evaluateIndicator(indicator, SAMPLE_REFERENCE_DATE),
+  index,
 }));
 
 const names = (list: IndicatorRow[]) => list.map((r) => r.indicator.name);
@@ -29,39 +30,39 @@ describe("filterRows (필터)", () => {
     expect(result).toHaveLength(11);
     expect(result.every((r) => r.evaluation.status === "delayed")).toBe(true);
   });
-  it("지표 구분별 보기: 그 구분의 지표만 남는다", () => {
-    const result = filterRows(rows, { delayedOnly: false, category: "내부통제" });
-    expect(result.length).toBeGreaterThan(0);
-    expect(result.every((r) => r.indicator.category === "내부통제")).toBe(true);
-    expect(result).toHaveLength(
-      SAMPLE_INDICATORS.filter((i) => i.category === "내부통제").length,
+  it("지표 구분별 보기: 네 가지 구분 각각에서 그 구분의 지표만 남는다", () => {
+    for (const category of INDICATOR_CATEGORIES) {
+      const result = filterRows(rows, { delayedOnly: false, category });
+      expect(result.length).toBeGreaterThan(0);
+      expect(result.every((r) => r.indicator.category === category)).toBe(true);
+      expect(result).toHaveLength(
+        SAMPLE_INDICATORS.filter((i) => i.category === category).length,
+      );
+    }
+  });
+  it("네 가지 구분의 건수를 모두 합하면 전체 30건이다", () => {
+    const total = INDICATOR_CATEGORIES.reduce(
+      (sum, category) => sum + filterRows(rows, { delayedOnly: false, category }).length,
+      0,
     );
+    expect(total).toBe(30);
   });
   it("두 필터를 함께 켜면 둘 다 만족하는 지표만 남는다", () => {
-    const result = filterRows(rows, { delayedOnly: true, category: "고객" });
+    const result = filterRows(rows, { delayedOnly: true, category: "공통 계량" });
     expect(result.length).toBeGreaterThan(0);
     expect(
-      result.every((r) => r.indicator.category === "고객" && r.evaluation.status === "delayed"),
+      result.every(
+        (r) => r.indicator.category === "공통 계량" && r.evaluation.status === "delayed",
+      ),
     ).toBe(true);
   });
   it("맞는 지표가 없으면 빈 목록이다", () => {
-    expect(filterRows(rows, { delayedOnly: false, category: "없는구분" })).toEqual([]);
+    expect(filterRows([], { delayedOnly: true, category: "부점 계량" })).toEqual([]);
   });
   it("필터가 켜져 있는지 알려준다", () => {
     expect(hasActiveFilters(NO_FILTERS)).toBe(false);
     expect(hasActiveFilters({ delayedOnly: true, category: "" })).toBe(true);
-    expect(hasActiveFilters({ delayedOnly: false, category: "영업" })).toBe(true);
-  });
-});
-
-describe("uniqueCategories", () => {
-  it("처음 나온 순서대로 중복 없이 돌려준다", () => {
-    const categories = uniqueCategories(rows);
-    expect(categories[0]).toBe("영업");
-    expect(new Set(categories).size).toBe(categories.length);
-    expect(categories).toEqual(
-      expect.arrayContaining(["영업", "수신", "여신", "고객", "리스크", "내부통제", "효율"]),
-    );
+    expect(hasActiveFilters({ delayedOnly: false, category: "부점 계량" })).toBe(true);
   });
 });
 
@@ -73,6 +74,11 @@ describe("sortRows (정렬)", () => {
     const before = names(rows);
     sortRows(rows, "progress", "desc");
     expect(names(rows)).toEqual(before);
+  });
+  it("정렬해도 각 줄이 원래 위치(index)를 그대로 갖고 있다", () => {
+    for (const row of sortRows(rows, "name", "asc")) {
+      expect(SAMPLE_INDICATORS[row.index]).toBe(row.indicator);
+    }
   });
   it("진척률 오름차순: 가장 낮은 지표가 먼저 나온다", () => {
     const result = sortRows(rows, "progress", "asc");

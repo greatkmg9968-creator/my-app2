@@ -1,6 +1,11 @@
 // Plan SC: 성공 기준 1(30건), 작업 3(부진/정상/초과 달성 섞기) — 샘플이 의도대로 구성됐는지 확인한다.
 
 import { describe, expect, it } from "vitest";
+import {
+  INDICATOR_CATEGORIES,
+  isIndicatorCategory,
+  isQuantitativeCategory,
+} from "@/types/indicator";
 import { evaluateIndicator, isInPercentRange } from "./calc";
 import {
   SAMPLE_BRANCH,
@@ -34,11 +39,29 @@ describe("샘플 지표 30건", () => {
     }
   });
 
-  it("지표명이 겹치지 않고, 지표 구분이 여러 가지다", () => {
+  it("지표명이 겹치지 않는다", () => {
     const names = new Set(SAMPLE_INDICATORS.map((i) => i.name));
     expect(names.size).toBe(30);
+  });
+
+  it("지표 구분은 올바른 네 가지 중 하나이고, 네 가지가 모두 들어 있다", () => {
+    expect(SAMPLE_INDICATORS.every((i) => isIndicatorCategory(i.category))).toBe(true);
     const categories = new Set(SAMPLE_INDICATORS.map((i) => i.category));
-    expect(categories.size).toBeGreaterThanOrEqual(5);
+    expect([...categories].sort()).toEqual([...INDICATOR_CATEGORIES].sort());
+  });
+
+  it("계량 지표는 기준값·목표값·실적값이 있고, 비계량 지표는 수치 없이 진척률을 직접 입력한다(또는 판정 보류)", () => {
+    for (const i of SAMPLE_INDICATORS) {
+      if (isQuantitativeCategory(i.category)) {
+        expect(i.baseValue).toBeDefined();
+        expect(i.targetValue).toBeDefined();
+        expect(i.actualValue).toBeDefined();
+      } else {
+        expect(i.baseValue).toBeUndefined();
+        expect(i.targetValue).toBeUndefined();
+        expect(i.actualValue).toBeUndefined();
+      }
+    }
   });
 
   it("배점 합계가 100이다", () => {

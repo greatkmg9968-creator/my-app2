@@ -2,12 +2,14 @@
 // Plan SC: 작업 8 — 필터·정렬. 보이는 목록만 바뀔 뿐 원래 지표 데이터는 바뀌지 않는다.
 
 import type { IndicatorEvaluation } from "@/lib/calc";
-import type { Indicator } from "@/types/indicator";
+import type { Indicator, IndicatorCategory } from "@/types/indicator";
 
 /** 표 한 줄: 지표와, 자료 기준일로 평가한 결과 */
 export interface IndicatorRow {
   indicator: Indicator;
   evaluation: IndicatorEvaluation;
+  /** 전체 지표 목록에서의 위치. 필터·정렬 후에도 수정·삭제할 지표를 찾는 데 쓴다. */
+  index: number;
 }
 
 /** 정렬 기준. "default"는 지표를 등록한 순서 그대로 둔다. */
@@ -20,8 +22,8 @@ export type SortDirection = "asc" | "desc";
 export interface RowFilters {
   /** true면 부진지표만 보여준다. */
   delayedOnly: boolean;
-  /** 보여줄 지표 구분. 빈 문자열이면 모든 구분을 보여준다. */
-  category: string;
+  /** 보여줄 지표 구분(부점 계량 / 부점 비계량 / 공통 계량 / 공통 비계량). 빈 문자열이면 모든 구분을 보여준다. */
+  category: IndicatorCategory | "";
 }
 
 /** 필터를 하나도 켜지 않은 상태 */
@@ -39,11 +41,6 @@ export function filterRows(rows: IndicatorRow[], filters: RowFilters): Indicator
     if (filters.category !== "" && indicator.category !== filters.category) return false;
     return true;
   });
-}
-
-/** 지표 구분 목록. 처음 나온 순서대로, 중복 없이 돌려준다. */
-export function uniqueCategories(rows: IndicatorRow[]): string[] {
-  return [...new Set(rows.map((row) => row.indicator.category))];
 }
 
 /** 정렬에 쓸 값. 진척률·차이를 알 수 없는(판정 보류) 줄은 null */

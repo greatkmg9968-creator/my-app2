@@ -3,6 +3,7 @@
 //
 // 주의: 이 값은 개발 확인용 가짜 데이터이며 실제 지표 값이 아니다.
 // 자료 기준일 SAMPLE_REFERENCE_DATE(경과율 78.9%) 기준으로 부진·정상·초과·판정 보류가 섞이도록 짰다.
+// 지표 구분은 부점 계량 / 부점 비계량 / 공통 계량 / 공통 비계량 네 가지가 모두 들어 있다.
 
 import type { Indicator } from "@/types/indicator";
 
@@ -15,9 +16,17 @@ export const SAMPLE_BRANCH = "샘플부점";
 /** 모든 샘플 지표에 공통인 값 */
 const COMMON = { branch: SAMPLE_BRANCH, evalDate: SAMPLE_REFERENCE_DATE } as const;
 
-/** 수치 지표: 기준값·목표값·실적값이 있어 진척률을 자동 계산한다. */
+/**
+ * 샘플을 만들 때 쓰는 분야 이름(영업, 수신 …)으로 지표 구분의 "부점/공통"을 정한다.
+ * 내부통제·고객·효율 분야는 모든 부점에 공통인 지표로, 나머지는 부점 지표로 본다.
+ */
+function scopeOf(field: string): "부점" | "공통" {
+  return ["내부통제", "고객", "효율"].includes(field) ? "공통" : "부점";
+}
+
+/** 수치 지표(계량): 기준값·목표값·실적값이 있어 진척률을 자동 계산한다. 첫 칸은 샘플 분야 이름이다. */
 function numeric(
-  category: string,
+  field: string,
   name: string,
   item: string,
   method: string,
@@ -28,7 +37,7 @@ function numeric(
 ): Indicator {
   return {
     ...COMMON,
-    category,
+    category: `${scopeOf(field)} 계량`,
     name,
     item,
     method,
@@ -41,9 +50,9 @@ function numeric(
   };
 }
 
-/** 수치로 나타낼 수 없는 지표: 진척률을 직접 입력한다. progress를 생략하면 "판정 보류"가 된다. */
+/** 수치로 나타낼 수 없는 지표(비계량): 진척률을 직접 입력한다. progress를 생략하면 "판정 보류"가 된다. */
 function manual(
-  category: string,
+  field: string,
   name: string,
   item: string,
   method: string,
@@ -54,7 +63,7 @@ function manual(
 ): Indicator {
   return {
     ...COMMON,
-    category,
+    category: `${scopeOf(field)} 비계량`,
     name,
     item,
     method,
@@ -92,10 +101,10 @@ export const SAMPLE_INDICATORS: Indicator[] = [
   numeric("수신", "순이자마진 개선", "마진 변화(bp)", "기말 마진 − 기초 마진", 3, { base: 0, target: 10, actual: -4 }, 20, "금리 조정 시기에 맞춘 상품 구성을 재검토한다."),
 
   // ── 수치로 나타낼 수 없는 지표: 진척률 직접 입력 ──────────────────────
-  manual("고객", "고객 만족도 평가", "만족도 등급 이행", "분기별 평가 등급 환산", 3, 85, 90),
+  manual("영업", "고객 만족도 평가", "만족도 등급 이행", "분기별 평가 등급 환산", 3, 85, 90),
   manual("내부통제", "내부통제 점검 이행", "점검 이행 비율", "점검표 이행 항목 ÷ 전체 항목", 3, 90, 95),
   manual("내부통제", "필수 교육 이수", "교육 이수율", "이수 인원 ÷ 대상 인원", 3, 100, 100),
-  manual("내부통제", "자체 점검 이행", "점검 완료 비율", "완료 점검 ÷ 계획 점검", 3, 70, 80, "미실시 점검을 4분기 일정에 배치한다."),
+  manual("리스크", "자체 점검 이행", "점검 완료 비율", "완료 점검 ÷ 계획 점검", 3, 70, 80, "미실시 점검을 4분기 일정에 배치한다."),
   manual("고객", "소비자 보호 활동", "활동 이행 비율", "이행 활동 ÷ 계획 활동", 3, 50, 60, "상품 설명 점검 활동을 월 단위로 늘린다."),
   manual("효율", "ESG 활동 실적", "활동 이행 비율", "이행 활동 ÷ 계획 활동", 3, 120, 130),
   manual("효율", "지역사회 공헌", "봉사 활동 이행", "참여 활동 ÷ 계획 활동", 3, 79, 85),
