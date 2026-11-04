@@ -1,21 +1,16 @@
 // Design Ref: §2.2 ⑤ 지표 표 — 모든 지표를 한 화면(한 표)에 보여준다. (최대 30행, 쪽 나누기 없음)
-// Plan SC: 작업 5(표), 작업 6(부진지표 강조 + 경과율과의 차이(%p) + 판정 보류). 진행 막대는 작업 7에서 더한다.
+// Plan SC: 작업 5(표), 작업 6(부진지표 강조 + 경과율과의 차이(%p) + 판정 보류), 작업 7(진행 막대)
+// 어떤 지표를 어떤 순서로 보여줄지는 위(IndicatorDashboard)에서 정하고, 이 표는 받은 줄을 그대로 그린다.
 
+import ProgressBar from "@/components/ProgressBar";
 import type { IndicatorEvaluation } from "@/lib/calc";
+import type { IndicatorRow } from "@/lib/filterSort";
 import {
   EMPTY_MARK,
   formatBehindText,
   formatNumber,
   formatPercent,
 } from "@/lib/format";
-import ProgressBar from "@/components/ProgressBar";
-import type { Indicator } from "@/types/indicator";
-
-/** 표 한 줄: 지표와, 자료 기준일로 평가한 결과 */
-export interface IndicatorRow {
-  indicator: Indicator;
-  evaluation: IndicatorEvaluation;
-}
 
 interface IndicatorTableProps {
   rows: IndicatorRow[];
