@@ -3,7 +3,7 @@
 // Design Ref: §17 질의응답 챗봇 — 오른쪽 아래 떠 있는 창. 대시보드와 같은 어두운 글래스 테마를 쓴다.
 // Plan SC: 작업 20 — 외부 AI 없이 브라우저 안에서만 답한다.
 //   (1) 지표 질문: 질문에서 조건을 읽어 계산된 값으로 정확히 답한다.
-//   (2) 자료 질문: 올려 둔 파일·보완사항·개선조치·추진과제에서 관련 문장을 찾아 원문 그대로 보여준다.
+//   (2) 자료 질문: 올려 둔 파일·개선, 추진사항·개선조치·추진과제에서 관련 문장을 찾아 원문 그대로 보여준다.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadFile } from "@/lib/attachmentStore";
@@ -50,7 +50,7 @@ const SUGGESTIONS = [
   "공통 계량 지표 중 보완 필요한 것",
   "부진지표 몇 개야?",
   "비계량 지표 보고서에 어떤 성과가 있어?",
-  "보완사항이 비어 있는 지표",
+  "개선, 추진사항이 비어 있는 지표",
 ];
 
 const HELP_TEXT =
@@ -110,7 +110,7 @@ export default function ChatWidget({ rows, onOpenDetail }: ChatWidgetProps) {
     for (const row of targets) {
       const { indicator, index } = row;
       const base = { indicator: indicator.name, category: indicator.category, index };
-      if (indicator.note) chunks.push({ ...base, source: "보완사항", text: indicator.note });
+      if (indicator.note) chunks.push({ ...base, source: "개선, 추진사항", text: indicator.note });
       for (const action of indicator.actions ?? []) {
         chunks.push({
           ...base,
@@ -151,7 +151,7 @@ export default function ChatWidget({ rows, onOpenDetail }: ChatWidgetProps) {
       return { chunk: hit.chunk, text, terms };
     });
     const scopeText = named ? named.indicator.name : scopeLabel(scope);
-    if (chunks.length === 0) notes.unshift(`${scopeText} 지표에는 검색할 자료(첨부파일·보완사항·개선조치·추진과제)가 없습니다.`);
+    if (chunks.length === 0) notes.unshift(`${scopeText} 지표에는 검색할 자료(첨부파일·개선, 추진사항·개선조치·추진과제)가 없습니다.`);
     return { scopeText, hits, notes };
   };
 
@@ -281,7 +281,7 @@ export default function ChatWidget({ rows, onOpenDetail }: ChatWidgetProps) {
                                   {row.displayProgress !== row.progress ? `(원래 값 ${row.progress.toFixed(1)}%)` : ""}
                                   {row.status === "delayed" ? ` · 경과율보다 ${Math.abs(row.gap).toFixed(1)}%p 낮음` : ""} · 배점 {row.weight}
                                 </span>
-                                {row.note && <span className="mt-0.5 block text-xs text-gray-300">보완사항: {row.note}</span>}
+                                {row.note && <span className="mt-0.5 block text-xs text-gray-300">개선, 추진사항: {row.note}</span>}
                               </button>
                             </li>
                           ))}

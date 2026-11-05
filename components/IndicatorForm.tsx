@@ -3,11 +3,12 @@
 // Design Ref: §2.3 지표 입력 창 — "지표 추가"·"수정"을 누르면 뜨는 창.
 // Plan SC: 작업 9 — 지표 직접 입력 폼. 지표 구분(부점 계량 / 부점 비계량 / 공통 계량 / 공통 비계량)을 고른 뒤
 //          그 안의 세부 평가항목을 직접 입력한다. 계량은 수치 칸, 비계량은 진척률 칸을 보여준다.
-// Plan SC: 작업 10 — 부진지표인데 보완사항이 비어 있으면 저장 버튼이 눌리지 않고 이유를 안내한다.
+// Plan SC: 작업 10 — 부진지표인데 개선, 추진사항이 비어 있으면 저장 버튼이 눌리지 않고 이유를 안내한다.
 // Plan SC: 작업 15·17 — 계량 지표는 집계 방식(누적 / 월말값)과 월별 실적(그 달 실적 12칸)을 입력할 수 있다.
 //          월별 실적을 입력하면 실적값은 비워도 되고, 자료 기준일이 속한 달까지의 값으로 현재 실적을 자동 계산한다.
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import CaseStudyPanel from "@/components/CaseStudyPanel";
 import { monthOfDate } from "@/lib/calc";
 import { formatNumber, formatPercent } from "@/lib/format";
 import {
@@ -38,7 +39,7 @@ interface IndicatorFormProps {
   initial?: Indicator;
   /**
    * 화면의 자료 기준일. 새 지표의 평가 기준일 기본값이 되고,
-   * 이 날짜의 경과율로 부진지표 여부(= 보완사항 필수 여부)를 판단한다.
+   * 이 날짜의 경과율로 부진지표 여부(= 개선, 추진사항 필수 여부)를 판단한다.
    */
   referenceDate: string;
   /** 이미 있는 다른 지표들의 이름. 같은 이름으로는 저장할 수 없다. (수정할 때는 자기 자신의 이름을 뺀다) */
@@ -126,7 +127,7 @@ export default function IndicatorForm({
     }
   })();
 
-  // 부진지표인데 보완사항이 비어 있으면 저장할 수 없다. (입력하는 동안 바로 판단해서 보여준다)
+  // 부진지표인데 개선, 추진사항이 비어 있으면 저장할 수 없다. (입력하는 동안 바로 판단해서 보여준다)
   const noteCheck = checkNoteRequired(values, referenceDate);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -468,7 +469,7 @@ export default function IndicatorForm({
 
           <Field
             id={ids.note}
-            label={noteCheck.required ? "보완사항 (필수)" : "보완사항"}
+            label={noteCheck.required ? "개선, 추진사항 (필수)" : "개선, 추진사항"}
             hint={
               noteCheck.required
                 ? undefined
@@ -485,6 +486,17 @@ export default function IndicatorForm({
               aria-invalid={noteCheck.required ? true : undefined}
               aria-describedby={noteCheck.required ? `${ids.note}-error` : undefined}
             />
+            {/* 모든 지표에서 쓸 수 있는 타기관 우수사례 추천 (지표명·평가항목만 외부 AI로 전송) */}
+            <CaseStudyPanel
+              name={values.name}
+              item={values.item}
+              onInsert={(text) =>
+                setValues((current) => ({
+                  ...current,
+                  note: current.note.trim() === "" ? text : `${current.note.trimEnd()}\n${text}`,
+                }))
+              }
+            />
           </Field>
         </div>
 
@@ -498,7 +510,7 @@ export default function IndicatorForm({
           </button>
           <button
             type="submit"
-            // 부진지표인데 보완사항이 비어 있으면 눌리지 않는다. 이유는 보완사항 칸 아래에 보인다.
+            // 부진지표인데 개선, 추진사항이 비어 있으면 눌리지 않는다. 이유는 개선, 추진사항 칸 아래에 보인다.
             disabled={noteCheck.required}
             aria-describedby={noteCheck.required ? `${ids.note}-error` : undefined}
             className="btn btn-primary"

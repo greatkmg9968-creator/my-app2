@@ -93,7 +93,7 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
             <th scope="col" className={NUMBER_HEAD_CELL}>현재 실적</th>
             <th scope="col" className={NUMBER_HEAD_CELL}>진척률</th>
             <th scope="col" className={NUMBER_HEAD_CELL}>예상달성도</th>
-            <th scope="col" className={HEAD_CELL}>보완사항</th>
+            <th scope="col" className={HEAD_CELL}>개선, 추진사항</th>
             {showActions && <th scope="col" className={HEAD_CELL}>관리</th>}
           </tr>
         </thead>
@@ -139,18 +139,18 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
                 <td className={NUMBER_CELL}>{formatPercent(indicator.expected)}</td>
                 <td className={`${CELL} min-w-[15rem]`}>
                   {hasMissingNote(indicator, evaluation.status) ? (
-                    // 부진인데 보완사항이 비어 있다. (예: 자료 기준일을 바꿔 새로 부진이 된 지표)
+                    // 부진인데 개선, 추진사항이 비어 있다. (예: 자료 기준일을 바꿔 새로 부진이 된 지표)
                     onEdit ? (
                       <button
                         type="button"
                         onClick={() => onEdit(index)}
                         className="btn btn-sm btn-danger"
                       >
-                        보완사항 입력 필요
+                        개선, 추진사항 입력 필요
                       </button>
                     ) : (
                       <span className="text-xs font-medium text-red-300">
-                        보완사항 입력 필요
+                        개선, 추진사항 입력 필요
                       </span>
                     )
                   ) : (

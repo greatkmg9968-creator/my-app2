@@ -154,7 +154,7 @@ export function answerIndicatorQuestion(question: string, rows: IndicatorRow[]):
           : "정상"
       })`,
       `예상달성도 ${indicator.expected.toFixed(1)}% · 배점 ${indicator.weight}`,
-      indicator.note ? `보완사항: ${indicator.note}` : "보완사항: 없음",
+      indicator.note ? `개선, 추진사항: ${indicator.note}` : "개선, 추진사항: 없음",
     ];
     return { title: indicator.name, lines, rows: [toQaRow(named)] };
   }
@@ -164,7 +164,7 @@ export function answerIndicatorQuestion(question: string, rows: IndicatorRow[]):
   const sort = detectSort(q);
   const limit = detectLimit(question);
   const wantsCount = /몇개|몇건|개수|갯수|수는|몇이/.test(q);
-  const wantsMissingNote = /보완사항(이)?(없|비어|빠진|미입력)|보완사항입력|보완사항을적/.test(q);
+  const wantsMissingNote = /(보완|개선,?추진)사항(이)?(없|비어|빠진|미입력)|(보완|개선,?추진)사항입력|(보완|개선,?추진)사항을적/.test(q);
   const wantsSummary = /요약|현황|전체상황|한눈에|정리/.test(q);
   const mentionsIndicators = /지표/.test(q);
 
@@ -196,7 +196,7 @@ export function answerIndicatorQuestion(question: string, rows: IndicatorRow[]):
   const conditionText = [
     hasScope ? scopeLabel(scope) : null,
     statusDelayed ? "부진" : statusNormal ? "정상" : null,
-    wantsMissingNote ? "보완사항 입력 필요" : null,
+    wantsMissingNote ? "개선, 추진사항 입력 필요" : null,
   ]
     .filter((part): part is string => part !== null)
     .join(" · ");

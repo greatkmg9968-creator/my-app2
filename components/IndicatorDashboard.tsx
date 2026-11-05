@@ -2,7 +2,7 @@
 
 // Design Ref: §2.2 성과지표 통합 대시보드 — 기준 정보, 지표 구분별 도넛(정상·보완 개수와 비율), 아래로 펼치는 세부 지표 표.
 // Plan SC: 작업 14 — 도넛 4개를 누르면 그 구분의 세부 지표가 아래로 펼쳐지고, "전체 지표 보기"로 모두 볼 수 있다.
-// Plan SC: 작업 6·8·9·10·11·12 — 자료 기준일·경과율, 필터·정렬, 지표 입력, 보완사항 필수, 엑셀 올리기·내보내기
+// Plan SC: 작업 6·8·9·10·11·12 — 자료 기준일·경과율, 필터·정렬, 지표 입력, 개선, 추진사항 필수, 엑셀 올리기·내보내기
 // Plan SC: 작업 15~19 — 이 컴퓨터에 자동 저장, 지표 세부 화면(역산·월별 추이·개선조치·추진과제·첨부파일)
 //
 // 자료 기준일은 화면에서 바꿀 수 있고(기본값은 오늘), 바꾸면 경과율과 부진 판정이 바로 다시 계산된다.
@@ -67,7 +67,7 @@ type FormTarget = { mode: "add" } | { mode: "edit"; index: number } | null;
 
 /**
  * 엑셀 양식 받기·올리기·내보내기 결과 안내. 성공이면 한 줄, 실패면 어느 줄이 왜 안 되는지 목록으로 보여준다.
- * warning은 끝까지 진행했지만 알려야 할 것이 있을 때다. (예: 내보냈지만 보완사항이 빈 부진지표가 있음)
+ * warning은 끝까지 진행했지만 알려야 할 것이 있을 때다. (예: 내보냈지만 개선, 추진사항이 빈 부진지표가 있음)
  */
 interface UploadNotice {
   kind: "success" | "warning" | "error";
@@ -330,7 +330,7 @@ export default function IndicatorDashboard({
   /**
    * 현재 현황을 엑셀 파일로 저장한다.
    * 필터·정렬과 관계없이 항상 전체 지표를 내보내고, 입력 순서 그대로 적는다.
-   * 보완사항이 빈 부진지표가 있어도 막지 않고 경고만 보여준다.
+   * 개선, 추진사항이 빈 부진지표가 있어도 막지 않고 경고만 보여준다.
    */
   const handleExport = async () => {
     if (rows === null || elapsedRate === null) return;
@@ -350,10 +350,10 @@ export default function IndicatorDashboard({
       if (missing.length > 0) {
         setUploadNotice({
           kind: "warning",
-          title: `엑셀 파일을 내보냈습니다. (${fileName}) 다만 보완사항이 비어 있는 부진지표가 ${missing.length}건 있습니다.`,
+          title: `엑셀 파일을 내보냈습니다. (${fileName}) 다만 개선, 추진사항이 비어 있는 부진지표가 ${missing.length}건 있습니다.`,
           details: [
-            ...missing.slice(0, MAX_NOTICE_DETAILS).map((row) => `${row.indicator.name}: 보완사항을 적어 주세요.`),
-            "파일에도 같은 경고를 적어 두었습니다. 보완사항을 적고 다시 내보내면 경고가 사라집니다.",
+            ...missing.slice(0, MAX_NOTICE_DETAILS).map((row) => `${row.indicator.name}: 개선, 추진사항을 적어 주세요.`),
+            "파일에도 같은 경고를 적어 두었습니다. 개선, 추진사항을 적고 다시 내보내면 경고가 사라집니다.",
           ],
         });
       } else {
@@ -446,7 +446,7 @@ export default function IndicatorDashboard({
   // ── 화면에 쓸 값들 ──────────────────────────────────────────
   const delayedCount = rows?.filter((r) => r.evaluation.status === "delayed").length ?? 0;
   const normalCount = (rows?.length ?? 0) - delayedCount;
-  // 부진인데 보완사항이 비어 있는 지표 수. (자료 기준일을 바꾸면 새로 생길 수 있다)
+  // 부진인데 개선, 추진사항이 비어 있는 지표 수. (자료 기준일을 바꾸면 새로 생길 수 있다)
   const missingNoteCount =
     rows?.filter((r) => hasMissingNote(r.indicator, r.evaluation.status)).length ?? 0;
 
@@ -538,15 +538,15 @@ export default function IndicatorDashboard({
         </p>
       ) : (
         <>
-          {/* 보완사항이 빠진 부진지표 알림 */}
+          {/* 개선, 추진사항이 빠진 부진지표 알림 */}
           {missingNoteCount > 0 && (
             <p
               role="status"
               data-testid="missing-note-alert"
               className="mb-4 rounded-2xl border border-red-400/40 bg-red-400/10 text-red-50 px-4 py-3 text-sm"
             >
-              <strong>보완사항을 입력해야 하는 부진지표가 {missingNoteCount}건 있습니다.</strong>{" "}
-              지표 구분을 눌러 펼친 표에서 &quot;보완사항 입력 필요&quot; 버튼을 눌러 보완사항을 적어 주세요.
+              <strong>개선, 추진사항을 입력해야 하는 부진지표가 {missingNoteCount}건 있습니다.</strong>{" "}
+              지표 구분을 눌러 펼친 표에서 &quot;개선, 추진사항 입력 필요&quot; 버튼을 눌러 개선, 추진사항을 적어 주세요.
             </p>
           )}
 

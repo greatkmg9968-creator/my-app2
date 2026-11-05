@@ -4,7 +4,7 @@
 // 계량 지표: 기준값·목표값·실적값을 입력하면 진척률을 자동 계산한다.
 //   (목표값 = 기준값이라 계산할 수 없을 때만 진척률을 직접 입력한다.)
 // 비계량 지표: 수치로 나타낼 수 없으므로 진척률을 직접 입력한다.
-// Plan SC: 작업 10 — 부진지표는 보완사항이 필수다. 목표값을 바꾸면 진척률은 저장해 둔 값이 아니라
+// Plan SC: 작업 10 — 부진지표는 개선, 추진사항이 필수다. 목표값을 바꾸면 진척률은 저장해 둔 값이 아니라
 //          바뀐 목표값으로 매번 다시 계산하므로, 이전 목표값 기준의 진척률이 남지 않는다.
 // Plan SC: 작업 15·17 — 계량 지표는 집계 방식(누적 / 월말값)과 월별 실적(그 달 실적 12칸)을 입력할 수 있다.
 //          월별 실적이 있으면 자료 기준일이 속한 달까지의 값으로 현재 실적을 자동으로 구한다.
@@ -167,9 +167,9 @@ export function needsDirectProgress(values: IndicatorFormValues): boolean {
   return isTargetEqualToBase(values);
 }
 
-/** 보완사항 필수 검사 결과 */
+/** 개선, 추진사항 필수 검사 결과 */
 export interface NoteCheck {
-  /** true면 부진지표인데 보완사항이 비어 있어 저장할 수 없다. */
+  /** true면 부진지표인데 개선, 추진사항이 비어 있어 저장할 수 없다. */
   required: boolean;
   /** 사용자에게 보여줄 안내 문구. required가 false면 null */
   message: string | null;
@@ -193,7 +193,7 @@ export function progressFromValues(values: IndicatorFormValues, referenceDate?: 
 }
 
 /**
- * 부진지표는 보완사항이 필수다. 입력한 값이 부진지표인데 보완사항이 비어 있으면 required를 true로 돌려준다.
+ * 부진지표는 개선, 추진사항이 필수다. 입력한 값이 부진지표인데 개선, 추진사항이 비어 있으면 required를 true로 돌려준다.
  * 진척률이나 자료 기준일을 아직 알 수 없으면(입력 중) 판단하지 않고 required는 false다.
  * @param referenceDate 화면의 자료 기준일. 이 날짜의 경과율로 부진 여부를 판단한다.
  */
@@ -210,7 +210,7 @@ export function checkNoteRequired(values: IndicatorFormValues, referenceDate: st
 
   return {
     required: true,
-    message: `부진지표입니다. (진척률 ${formatPercent(progress)} < 경과율 ${formatPercent(elapsedRate)}) 보완사항을 입력해 주세요.`,
+    message: `부진지표입니다. (진척률 ${formatPercent(progress)} < 경과율 ${formatPercent(elapsedRate)}) 개선, 추진사항을 입력해 주세요.`,
   };
 }
 
@@ -224,7 +224,7 @@ export interface ValidateOptions {
  * 입력한 값을 검사해 지표 한 건으로 바꾼다.
  * @param values 폼에 입력한 값
  * @param branch 화면에 입력한 부점 이름. 폼에서 입력받지 않고 자동으로 넣는다.
- * @param referenceDate 화면의 자료 기준일. 주면 부진지표의 보완사항 필수 검사도 하고,
+ * @param referenceDate 화면의 자료 기준일. 주면 부진지표의 개선, 추진사항 필수 검사도 하고,
  *                      월별 실적에서 그 달까지의 현재 실적을 구할 수 있는지도 확인한다.
  */
 export function validateIndicatorForm(
@@ -319,7 +319,7 @@ export function validateIndicatorForm(
       : "진척률을 0~200 사이 숫자로 입력해 주세요.";
   }
 
-  // 부진지표는 보완사항이 필수
+  // 부진지표는 개선, 추진사항이 필수
   if (referenceDate !== undefined) {
     const noteCheck = checkNoteRequired(values, referenceDate);
     if (noteCheck.required) errors.note = noteCheck.message ?? undefined;

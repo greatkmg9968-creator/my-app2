@@ -191,10 +191,10 @@ export default function IndicatorDetail({
             </div>
 
             <div className="mt-4">
-              <p className="text-xs text-foreground/60">보완사항</p>
+              <p className="text-xs text-foreground/60">개선, 추진사항</p>
               {missingNote ? (
                 <p role="alert" className="mt-0.5 text-sm font-medium text-red-400">
-                  부진지표인데 보완사항이 비어 있습니다. &quot;지표 수정&quot;에서 입력해 주세요.
+                  부진지표인데 개선, 추진사항이 비어 있습니다. &quot;지표 수정&quot;에서 입력해 주세요.
                 </p>
               ) : (
                 <p className="mt-0.5 whitespace-pre-wrap text-sm">{indicator.note ?? EMPTY_MARK}</p>
