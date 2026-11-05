@@ -4,7 +4,7 @@
 import type { ReactNode } from "react";
 
 /** 서비스 이름. 상단 바와 브라우저 탭 제목에서 같은 이름을 쓴다. */
-export const SERVICE_NAME = "부점 성과지표 관리";
+export const SERVICE_NAME = "성과지표 통합 대시보드";
 
 interface AppShellProps {
   /** 화면 본문 */

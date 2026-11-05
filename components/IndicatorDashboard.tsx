@@ -1,42 +1,65 @@
 "use client";
 
-// Design Ref: §2.2 ②③④⑤ — 기준 정보(자료 기준일·경과율·저장 안 됨 안내), 요약 카드, 필터·정렬, 지표 표를 한 화면에 모은다.
-// Plan SC: 작업 6 — 자료 기준일·경과율 표시, 부진지표 강조, 판정 보류 개수, 저장 안 됨 안내와 확인 창
-// Plan SC: 작업 8 — 필터(부진지표만, 지표 구분별)와 정렬(진척률, 차이, 지표명, 배점)
-// Plan SC: 작업 9 — 지표 직접 입력(추가·수정·삭제, 최대 30개). 지표 구분은 부점/공통 × 계량/비계량 네 가지다.
+// Design Ref: §2.2 성과지표 통합 대시보드 — 기준 정보, 지표 구분별 도넛(정상·보완 개수와 비율), 아래로 펼치는 세부 지표 표.
+// Plan SC: 작업 14 — 도넛 4개를 누르면 그 구분의 세부 지표가 아래로 펼쳐지고, "전체 지표 보기"로 모두 볼 수 있다.
+// Plan SC: 작업 6·8·9·10·11·12 — 자료 기준일·경과율, 필터·정렬, 지표 입력, 보완사항 필수, 엑셀 올리기·내보내기
+// Plan SC: 작업 15~19 — 이 컴퓨터에 자동 저장, 지표 세부 화면(역산·월별 추이·개선조치·추진과제·첨부파일)
 //
 // 자료 기준일은 화면에서 바꿀 수 있고(기본값은 오늘), 바꾸면 경과율과 부진 판정이 바로 다시 계산된다.
-// 필터·정렬은 보이는 목록만 바꾼다. 요약 카드의 개수는 항상 전체 지표 기준이다.
-// 지표 목록은 이 화면의 메모리에만 있고 저장하지 않는다. (새로고침하면 처음 상태로 돌아간다)
+// 지표 목록과 부점 이름은 바뀔 때마다 이 컴퓨터의 브라우저(localStorage)에 자동 저장하고, 서버로는 보내지 않는다.
 
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import CategoryDonuts, { type Selection } from "@/components/CategoryDonuts";
+import IndicatorDetail, { type DetailPatch } from "@/components/IndicatorDetail";
 import IndicatorForm from "@/components/IndicatorForm";
 import IndicatorTable from "@/components/IndicatorTable";
-import { useBeforeUnloadWarning } from "@/components/useBeforeUnloadWarning";
+import { clearAllFiles, deleteFiles } from "@/lib/attachmentStore";
 import {
   calcElapsedRate,
   evaluateIndicator,
   hasMissingNote,
   toDateString,
 } from "@/lib/calc";
+import { checkUploadFile, exportFileName, TEMPLATE_FILE_NAME } from "@/lib/excelFormat";
+import { formatUploadErrors, parseUploadedWorkbook } from "@/lib/excelRows";
 import {
   filterRows,
   hasActiveFilters,
-  NO_FILTERS,
   sortRows,
   type IndicatorRow,
-  type RowFilters,
   type SortDirection,
   type SortKey,
 } from "@/lib/filterSort";
-import { checkUploadFile, exportFileName, TEMPLATE_FILE_NAME } from "@/lib/excelFormat";
-import { formatUploadErrors, parseUploadedSheet } from "@/lib/excelRows";
 import { EMPTY_MARK, formatPercent } from "@/lib/format";
+import {
+  carryOverAttachments,
+  ensureIds,
+  newId,
+  orphanedAttachmentIds,
+  totalAttachmentBytes,
+} from "@/lib/records";
+import { SAMPLE_INDICATORS } from "@/lib/sampleData";
+import { serializeState, STORAGE_KEY } from "@/lib/storage";
+import { summarizeByCategory } from "@/lib/summary";
 import {
   INDICATOR_CATEGORIES,
   MAX_INDICATORS,
   type Indicator,
+  type IndicatorCategory,
 } from "@/types/indicator";
+
+/** 정렬 기준 선택지 */
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "default", label: "입력 순서" },
+  { value: "progress", label: "진척률" },
+  { value: "gap", label: "경과율과의 차이(%p)" },
+  { value: "name", label: "지표명" },
+  { value: "weight", label: "배점" },
+];
+
+/** 도구 줄의 선택 상자·입력 상자 공통 모양 */
+const CONTROL_CLASS =
+  "rounded border border-black/20 bg-background px-2 py-1 text-sm dark:border-white/25";
 
 /** 지금 열려 있는 입력 창. 없으면 null */
 type FormTarget = { mode: "add" } | { mode: "edit"; index: number } | null;
@@ -71,24 +94,13 @@ function downloadBytes(bytes: Uint8Array, fileName: string): void {
 const TOOL_BUTTON =
   "rounded border border-black/20 px-3 py-1 text-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/25 dark:hover:bg-white/10";
 
-/** 정렬 기준 선택지 */
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "default", label: "입력 순서" },
-  { value: "progress", label: "진척률" },
-  { value: "gap", label: "경과율과의 차이(%p)" },
-  { value: "name", label: "지표명" },
-  { value: "weight", label: "배점" },
-];
-
-/** 도구 줄의 선택 상자·입력 상자 공통 모양 */
-const CONTROL_CLASS =
-  "rounded border border-black/20 bg-background px-2 py-1 text-sm dark:border-white/25";
-
 interface IndicatorDashboardProps {
-  /** 처음에 보여줄 지표. 화면에서 추가·수정·삭제하면 이 화면 안에서만 바뀐다. */
+  /** 처음에 보여줄 지표. 화면에서 추가·수정·삭제하면 이 화면 안에서 바뀌고, 이 컴퓨터에 자동 저장된다. */
   initialIndicators: Indicator[];
   /** 처음에 채워 둘 부점 이름. 화면에서 바꿀 수 있고, 새 지표에 자동으로 들어간다. */
   initialBranch: string;
+  /** 시작할 때 보여줄 안내 (예: 저장된 자료 중 일부를 읽지 못해 제외했다). 없으면 null */
+  initialNotice?: string | null;
 }
 
 // 오늘 날짜는 브라우저에서만 안다. 서버에서 처음 그릴 때는 빈 값을 쓰고,
@@ -107,38 +119,23 @@ function safeElapsedRate(date: string): number | null {
   }
 }
 
-/** 요약 카드 한 칸 */
-function SummaryCard({
-  label,
-  count,
-  tone,
-}: {
-  label: string;
-  count: number;
-  tone?: "danger";
-}) {
-  return (
-    <div
-      className={
-        tone === "danger"
-          ? "rounded-lg border border-red-600/40 bg-red-500/10 px-4 py-3"
-          : "rounded-lg border border-black/10 px-4 py-3 dark:border-white/15"
-      }
-    >
-      <p className="text-xs text-foreground/70">{label}</p>
-      <p className="text-2xl font-semibold tabular-nums">
-        {count}
-        <span className="ml-1 text-sm font-normal">개</span>
-      </p>
-    </div>
-  );
+/** 수정할 때 폼이 다루지 않는 값(번호·개선조치·추진과제·첨부파일 정보)을 기존 지표에서 이어 받는다. */
+function carriedRecords(existing: Indicator | undefined): Partial<Indicator> {
+  if (!existing) return { id: newId() };
+  return {
+    id: existing.id ?? newId(),
+    ...(existing.actions ? { actions: existing.actions } : {}),
+    ...(existing.tasks ? { tasks: existing.tasks } : {}),
+    ...(existing.attachments ? { attachments: existing.attachments } : {}),
+  };
 }
 
 export default function IndicatorDashboard({
   initialIndicators,
   initialBranch,
+  initialNotice = null,
 }: IndicatorDashboardProps) {
-  // 지표 목록. 이 화면의 메모리에만 두고 저장하지 않는다.
+  // 지표 목록. 바뀔 때마다 이 컴퓨터에 자동 저장한다.
   const [indicators, setIndicators] = useState<Indicator[]>(initialIndicators);
 
   // 부점 이름. 로그인이 없으므로 화면에서 직접 입력한다. (입력 중에는 공백도 그대로 두고, 쓸 때는 앞뒤 공백을 지운다)
@@ -155,9 +152,29 @@ export default function IndicatorDashboard({
       current.map((item) => (item.branch === next ? item : { ...item, branch: next })),
     );
   };
+
   const [formTarget, setFormTarget] = useState<FormTarget>(null);
+  const [detailIndex, setDetailIndex] = useState<number | null>(null);
   const isFull = indicators.length >= MAX_INDICATORS;
 
+  // ── 자동 저장 ───────────────────────────────────────────────
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [startNotice, setStartNotice] = useState<string | null>(initialNotice);
+
+  useEffect(() => {
+    let failed = false;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, serializeState({ branch: branchInput.trim(), indicators }));
+    } catch {
+      // 저장 공간이 모자라거나 브라우저가 저장을 막은 경우
+      failed = true;
+    }
+    // 이 효과 안에서 바로 상태를 바꾸지 않고, 다음 순간에 반영한다.
+    const timer = setTimeout(() => setSaveFailed(failed), 0);
+    return () => clearTimeout(timer);
+  }, [indicators, branchInput]);
+
+  // ── 자료 기준일과 평가 ─────────────────────────────────────
   const today = useSyncExternalStore(subscribeNothing, getToday, getTodayOnServer);
   // 사용자가 고른 날짜. 아직 고르지 않았으면 오늘 날짜를 쓴다.
   const [pickedDate, setPickedDate] = useState<string | null>(null);
@@ -176,27 +193,53 @@ export default function IndicatorDashboard({
     }));
   }, [indicators, referenceDate, elapsedRate]);
 
-  // 필터·정렬 조건. 보이는 목록만 바꾸고 지표 데이터는 바꾸지 않는다.
-  const [filters, setFilters] = useState<RowFilters>(NO_FILTERS);
+  const summaries = useMemo(() => summarizeByCategory(rows ?? []), [rows]);
+
+  // ── 도넛을 눌러 펼친 목록, 필터·정렬 ─────────────────────────
+  const [selection, setSelection] = useState<Selection>(null);
+  const [delayedOnly, setDelayedOnly] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<IndicatorCategory | "">("");
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
-  const visibleRows = useMemo(
-    () => (rows === null ? null : sortRows(filterRows(rows, filters), sortKey, sortDirection)),
-    [rows, filters, sortKey, sortDirection],
-  );
+  const resetView = () => {
+    setDelayedOnly(false);
+    setCategoryFilter("");
+    setSortKey("default");
+    setSortDirection("asc");
+  };
 
-  // 지표 값은 저장되지 않으므로, 지표가 있는 동안에는 새로고침·창 닫기 전에 확인 창을 띄운다.
-  useBeforeUnloadWarning(indicators.length > 0);
+  const selectCategory = (category: IndicatorCategory) => {
+    setSelection((current) => (current === category ? null : category));
+    resetView();
+  };
+  const toggleAll = () => {
+    setSelection((current) => (current === "all" ? null : "all"));
+    resetView();
+  };
 
+  /** 펼친 목록에 보여줄 줄들: 구분 → 필터 → 정렬 순으로 거른다. */
+  const panelRows = useMemo(() => {
+    if (rows === null || selection === null) return null;
+    const base = selection === "all" ? rows : rows.filter((row) => row.indicator.category === selection);
+    const filtered = filterRows(base, {
+      delayedOnly,
+      category: selection === "all" ? categoryFilter : "",
+    });
+    return { base, visible: sortRows(filtered, sortKey, sortDirection) };
+  }, [rows, selection, delayedOnly, categoryFilter, sortKey, sortDirection]);
+
+  // ── 지표 추가·수정·삭제 ──────────────────────────────────────
   /** 입력 창에서 검사를 통과한 지표를 목록에 넣는다. (추가면 맨 뒤에, 수정이면 그 자리에) */
   const handleSubmit = (indicator: Indicator) => {
     if (formTarget?.mode === "edit") {
       const { index } = formTarget;
-      setIndicators((current) => current.map((item, i) => (i === index ? indicator : item)));
+      setIndicators((current) =>
+        current.map((item, i) => (i === index ? { ...carriedRecords(item), ...indicator } : item)),
+      );
     } else {
       setIndicators((current) =>
-        current.length >= MAX_INDICATORS ? current : [...current, indicator],
+        current.length >= MAX_INDICATORS ? current : [...current, { ...carriedRecords(undefined), ...indicator }],
       );
     }
     setFormTarget(null);
@@ -205,11 +248,54 @@ export default function IndicatorDashboard({
   const handleDelete = (index: number) => {
     const target = indicators[index];
     if (!target) return;
-    if (!window.confirm(`"${target.name}" 지표를 삭제할까요?`)) return;
+    const fileCount = target.attachments?.length ?? 0;
+    const message =
+      fileCount > 0
+        ? `"${target.name}" 지표를 삭제할까요? (올려 둔 파일 ${fileCount}개도 이 컴퓨터에서 함께 지워집니다)`
+        : `"${target.name}" 지표를 삭제할까요?`;
+    if (!window.confirm(message)) return;
     setIndicators((current) => current.filter((_, i) => i !== index));
+    setDetailIndex((current) => (current === index ? null : current));
+    // 지표가 사라지면 그 지표의 파일도 저장소에서 지운다. (실패해도 다음에 앱을 열 때 정리된다)
+    void deleteFiles((target.attachments ?? []).map((file) => file.id)).catch(() => undefined);
   };
 
-  // 엑셀 양식 받기·올리기
+  /** 지표 세부 화면에서 바뀐 개선조치·추진과제·첨부파일 정보를 지표에 넣는다. 비어 있으면 그 칸을 없앤다. */
+  const handleDetailUpdate = (index: number, patch: DetailPatch) => {
+    setIndicators((current) =>
+      current.map((item, i) => {
+        if (i !== index) return item;
+        const next: Indicator = { ...item, ...patch };
+        for (const key of ["actions", "tasks", "attachments"] as const) {
+          if (key in patch && (next[key] ?? []).length === 0) delete next[key];
+        }
+        return next;
+      }),
+    );
+  };
+
+  const handleClearAll = () => {
+    const fileTotal = totalAttachmentBytes(indicators) > 0;
+    if (
+      !window.confirm(
+        `지표 ${indicators.length}건을 모두 지울까요? (샘플 지표도 함께 지워집니다${fileTotal ? ", 올려 둔 파일도 이 컴퓨터에서 지워집니다" : ""})`,
+      )
+    ) {
+      return;
+    }
+    setIndicators([]);
+    setSelection(null);
+    setDetailIndex(null);
+    resetView();
+    void clearAllFiles().catch(() => undefined);
+  };
+
+  /** 지표가 하나도 없을 때 둘러보기용 샘플 지표를 넣는다. (부점 이름은 지금 입력한 이름으로 맞춘다) */
+  const handleLoadSamples = () => {
+    setIndicators(SAMPLE_INDICATORS.map((item) => ({ ...item, branch })));
+  };
+
+  // ── 엑셀 양식 받기·올리기·내보내기 ────────────────────────────
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadNotice, setUploadNotice] = useState<UploadNotice | null>(null);
   const [excelBusy, setExcelBusy] = useState(false);
@@ -225,7 +311,9 @@ export default function IndicatorDashboard({
       setUploadNotice({
         kind: "success",
         title: `엑셀 양식을 내려받았습니다. (${TEMPLATE_FILE_NAME})`,
-        details: ["엑셀에서 \"지표\" 시트에 지표를 적고 저장한 뒤, \"엑셀 올리기\"로 올려 주세요. 작성 방법은 \"작성 안내\" 시트에 있습니다."],
+        details: [
+          "엑셀에서 \"지표\" 시트에 지표를 적고 저장한 뒤, \"엑셀 올리기\"로 올려 주세요. 월별 실적·개선조치·추진과제 시트는 필요할 때만 쓰시면 됩니다. 작성 방법은 \"작성 안내\" 시트에 있습니다.",
+        ],
       });
     } catch {
       setUploadNotice({
@@ -253,6 +341,11 @@ export default function IndicatorDashboard({
       downloadBytes(await buildExport({ rows, branch, referenceDate, elapsedRate }), fileName);
 
       const missing = rows.filter((row) => hasMissingNote(row.indicator, row.evaluation.status));
+      const fileCount = indicators.reduce((sum, item) => sum + (item.attachments?.length ?? 0), 0);
+      const fileNote =
+        fileCount > 0
+          ? ` 올려 둔 파일 ${fileCount}개는 엑셀에 들어가지 않으니(이름 목록만 들어갑니다) 원본을 따로 보관하세요.`
+          : "";
       if (missing.length > 0) {
         setUploadNotice({
           kind: "warning",
@@ -266,7 +359,9 @@ export default function IndicatorDashboard({
         setUploadNotice({
           kind: "success",
           title: `엑셀 파일을 내보냈습니다. (${fileName}) 지표 ${rows.length}건 전체가 들어 있습니다.`,
-          details: ["이 화면의 값은 저장되지 않으니, 내려받은 파일을 보관하세요. 이 파일은 \"엑셀 올리기\"로 다시 올릴 수 있습니다."],
+          details: [
+            `이 파일은 백업이나 전달용입니다. "엑셀 올리기"로 다시 올릴 수 있고, 월별 실적·개선조치·추진과제도 함께 들어 있습니다.${fileNote}`,
+          ],
         });
       }
     } catch {
@@ -296,9 +391,9 @@ export default function IndicatorDashboard({
     setExcelBusy(true);
     setUploadNotice(null);
     try {
-      const { readSheet } = await import("@/lib/excel");
-      const sheet = await readSheet(await file.arrayBuffer());
-      const result = parseUploadedSheet(sheet, { branch, referenceDate });
+      const { readWorkbook } = await import("@/lib/excel");
+      const book = await readWorkbook(await file.arrayBuffer());
+      const result = parseUploadedWorkbook(book, { branch, referenceDate });
 
       if (!result.ok) {
         const lines = formatUploadErrors(result.errors);
@@ -316,17 +411,24 @@ export default function IndicatorDashboard({
       if (
         indicators.length > 0 &&
         !window.confirm(
-          `기존 지표 ${indicators.length}건이 모두 사라지고, 올린 파일의 지표 ${result.indicators.length}건으로 바뀝니다. 계속할까요?`,
+          `기존 지표 ${indicators.length}건이 모두 사라지고, 올린 파일의 지표 ${result.indicators.length}건으로 바뀝니다. (같은 지표에 올려 둔 첨부파일은 그대로 이어집니다) 계속할까요?`,
         )
       ) {
         setUploadNotice({ kind: "error", title: "올리기를 취소했습니다. (기존 지표는 그대로입니다)", details: [] });
         return;
       }
 
-      setIndicators(result.indicators);
+      // 엑셀에는 파일 자체가 없으므로, 같은 지표(번호 또는 이름이 같은 지표)의 첨부파일 정보를 이어 준다.
+      const next = ensureIds(carryOverAttachments(result.indicators, indicators));
+      const orphans = orphanedAttachmentIds(indicators, next);
+      setIndicators(next);
+      setSelection(null);
+      setDetailIndex(null);
+      resetView();
+      void deleteFiles(orphans).catch(() => undefined);
       setUploadNotice({
         kind: "success",
-        title: `엑셀 파일에서 지표 ${result.indicators.length}건을 올렸습니다.`,
+        title: `엑셀 파일에서 지표 ${next.length}건을 올렸습니다.`,
         details: [],
       });
     } catch {
@@ -340,25 +442,46 @@ export default function IndicatorDashboard({
     }
   };
 
-  const handleClearAll = () => {
-    if (!window.confirm(`지표 ${indicators.length}건을 모두 지울까요? (샘플 지표도 함께 지워집니다)`)) {
-      return;
-    }
-    setIndicators([]);
-    setFilters(NO_FILTERS);
-    setSortKey("default");
-    setSortDirection("asc");
-  };
-
+  // ── 화면에 쓸 값들 ──────────────────────────────────────────
   const delayedCount = rows?.filter((r) => r.evaluation.status === "delayed").length ?? 0;
-  const normalCount = rows?.filter((r) => r.evaluation.status === "normal").length ?? 0;
-  const pendingCount = rows?.filter((r) => r.evaluation.status === "pending").length ?? 0;
+  const normalCount = (rows?.length ?? 0) - delayedCount;
   // 부진인데 보완사항이 비어 있는 지표 수. (자료 기준일을 바꾸면 새로 생길 수 있다)
   const missingNoteCount =
     rows?.filter((r) => hasMissingNote(r.indicator, r.evaluation.status)).length ?? 0;
 
+  const detailRow = detailIndex === null ? null : (rows?.find((row) => row.index === detailIndex) ?? null);
+  const formOtherNames = indicators
+    .filter((_, i) => !(formTarget?.mode === "edit" && formTarget.index === i))
+    .map((item) => item.name);
+
+  const panelTitle = selection === "all" ? "전체 지표" : `${selection} 지표`;
+
   return (
     <>
+      {/* 시작 안내·저장 실패 안내 */}
+      {startNotice && (
+        <p
+          role="status"
+          data-testid="start-notice"
+          className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-amber-600/60 bg-amber-500/10 px-4 py-3 text-sm"
+        >
+          <span>{startNotice}</span>
+          <button type="button" onClick={() => setStartNotice(null)} className={`${TOOL_BUTTON} shrink-0 px-2 py-0.5 text-xs`}>
+            닫기
+          </button>
+        </p>
+      )}
+      {saveFailed && (
+        <p
+          role="alert"
+          data-testid="save-failed"
+          className="mb-4 rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm"
+        >
+          <strong>자동 저장에 실패했습니다.</strong> 이 브라우저의 저장 공간이 부족하거나 저장이 막혀 있습니다. 지금 입력한
+          내용이 사라지지 않게 &quot;엑셀 내보내기&quot;로 백업해 주세요.
+        </p>
+      )}
+
       {/* ② 기준 정보 */}
       <section
         aria-label="기준 정보"
@@ -394,8 +517,9 @@ export default function IndicatorDashboard({
             </strong>
           </p>
         </div>
-        <p className="mt-3 text-xs text-foreground/70">
-          이 화면의 값은 저장되지 않습니다. 새로고침하거나 창을 닫으면 사라지니, 엑셀로 내보내 보관하세요.
+        <p className="mt-3 text-xs text-foreground/70" data-testid="save-notice">
+          입력한 내용은 <strong>이 컴퓨터의 브라우저에 자동 저장</strong>됩니다. 서버로는 보내지 않으며, 다른 컴퓨터나 다른
+          브라우저에서는 보이지 않습니다. 브라우저의 사이트 데이터를 지우면 사라지니 가끔 &quot;엑셀 내보내기&quot;로 백업해 두세요.
         </p>
         {!branchReady && (
           <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
@@ -404,7 +528,7 @@ export default function IndicatorDashboard({
         )}
       </section>
 
-      {rows === null || visibleRows === null ? (
+      {rows === null ? (
         <p
           role="status"
           className="rounded-lg border border-dashed border-black/20 p-8 text-center text-sm dark:border-white/25"
@@ -413,14 +537,6 @@ export default function IndicatorDashboard({
         </p>
       ) : (
         <>
-          {/* ③ 요약 카드 */}
-          <section aria-label="지표 요약" className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <SummaryCard label="전체 지표" count={rows.length} />
-            <SummaryCard label="부진지표" count={delayedCount} tone="danger" />
-            <SummaryCard label="정상" count={normalCount} />
-            <SummaryCard label="판정 보류" count={pendingCount} />
-          </section>
-
           {/* 보완사항이 빠진 부진지표 알림 */}
           {missingNoteCount > 0 && (
             <p
@@ -429,11 +545,11 @@ export default function IndicatorDashboard({
               className="mb-4 rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm"
             >
               <strong>보완사항을 입력해야 하는 부진지표가 {missingNoteCount}건 있습니다.</strong>{" "}
-              표에서 &quot;보완사항 입력 필요&quot; 버튼을 눌러 보완사항을 적어 주세요.
+              지표 구분을 눌러 펼친 표에서 &quot;보완사항 입력 필요&quot; 버튼을 눌러 보완사항을 적어 주세요.
             </p>
           )}
 
-          {/* ④ 도구 줄: 지표 직접 입력 */}
+          {/* ④ 도구 줄: 지표 직접 입력, 엑셀 */}
           <section
             aria-label="지표 입력 도구"
             className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-black/10 p-4 dark:border-white/15"
@@ -495,7 +611,7 @@ export default function IndicatorDashboard({
               {isFull && " — 가득 찼습니다. 새 지표를 추가하려면 먼저 지표를 삭제해 주세요."}
             </p>
 
-            {/* 엑셀 양식 받기·올리기 결과 */}
+            {/* 엑셀 양식 받기·올리기·내보내기 결과 */}
             {uploadNotice && (
               <div
                 role={uploadNotice.kind === "error" ? "alert" : "status"}
@@ -530,115 +646,165 @@ export default function IndicatorDashboard({
             )}
           </section>
 
-          {/* ④ 필터·정렬 */}
-          <section
-            aria-label="필터와 정렬"
-            className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-lg border border-black/10 p-4 dark:border-white/15"
-          >
-            <label className="flex items-center gap-2 pb-1 text-sm">
-              <input
-                type="checkbox"
-                checked={filters.delayedOnly}
-                onChange={(event) =>
-                  setFilters((current) => ({ ...current, delayedOnly: event.target.checked }))
-                }
-                className="h-4 w-4"
-              />
-              부진지표만 보기
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-foreground/70">지표 구분</span>
-              <select
-                value={filters.category}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    category: event.target.value as RowFilters["category"],
-                  }))
-                }
-                className={CONTROL_CLASS}
-              >
-                <option value="">전체</option>
-                {INDICATOR_CATEGORIES.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-foreground/70">정렬 기준</span>
-              <select
-                value={sortKey}
-                onChange={(event) => setSortKey(event.target.value as SortKey)}
-                className={CONTROL_CLASS}
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-foreground/70">정렬 방향</span>
-              <select
-                value={sortDirection}
-                onChange={(event) => setSortDirection(event.target.value as SortDirection)}
-                disabled={sortKey === "default"}
-                className={`${CONTROL_CLASS} disabled:opacity-50`}
-              >
-                <option value="asc">오름차순 (낮은 것부터)</option>
-                <option value="desc">내림차순 (높은 것부터)</option>
-              </select>
-            </label>
-
-            {(hasActiveFilters(filters) || sortKey !== "default") && (
-              <button
-                type="button"
-                onClick={() => {
-                  setFilters(NO_FILTERS);
-                  setSortKey("default");
-                  setSortDirection("asc");
-                }}
-                className="rounded border border-black/20 px-3 py-1 text-sm hover:bg-black/5 dark:border-white/25 dark:hover:bg-white/10"
-              >
-                조건 초기화
-              </button>
-            )}
-          </section>
-
-          <h2 className="mb-3 text-base font-semibold">
-            지표 현황{" "}
-            <span className="font-normal text-foreground/70">
-              {visibleRows.length === rows.length
-                ? `(전체 ${rows.length}건)`
-                : `(전체 ${rows.length}건 중 ${visibleRows.length}건 표시)`}
-            </span>
-          </h2>
-          {/* 막대 읽는 법 */}
-          <p className="mb-3 text-xs text-foreground/70">
-            막대 읽는 법: 막대 길이는 진척률(100%가 가득 찬 길이)이고, 세로선은 자료 기준일 시점의 경과율입니다.
-            막대가 세로선보다 짧으면 시간보다 뒤처진 부진지표입니다. 막대 끝의 노란 조각은 100%를 넘긴 지표입니다.
-          </p>
-          {visibleRows.length === 0 ? (
-            <p
-              role="status"
-              className="rounded-lg border border-dashed border-black/20 p-8 text-center text-sm dark:border-white/25"
+          {/* 대시보드: 지표 구분별 정상·보완 도넛 */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">
+              지표 구분별 현황{" "}
+              <span className="text-sm font-normal text-foreground/70" data-testid="overall-summary">
+                (전체 {rows.length}개 · 정상 {normalCount}개 · 보완 필요 {delayedCount}개)
+              </span>
+            </h2>
+            <button
+              type="button"
+              onClick={toggleAll}
+              aria-pressed={selection === "all"}
+              disabled={rows.length === 0}
+              data-testid="show-all"
+              className={`${TOOL_BUTTON} ${selection === "all" ? "border-foreground bg-black/5 dark:bg-white/10" : ""}`}
             >
-              {indicators.length === 0
-                ? "등록된 지표가 없습니다. 위의 \"지표 추가\"를 눌러 지표를 입력해 주세요."
-                : "조건에 맞는 지표가 없습니다. 위의 필터를 바꾸거나 \"조건 초기화\"를 눌러 주세요."}
-            </p>
-          ) : (
-            <IndicatorTable
-              rows={visibleRows}
-              onEdit={(index) => setFormTarget({ mode: "edit", index })}
-              onDelete={handleDelete}
-            />
+              {selection === "all" ? "전체 지표 접기" : "전체 지표 보기"}
+            </button>
+          </div>
+          <CategoryDonuts summaries={summaries} selected={selection} onSelect={selectCategory} />
+
+          {/* 아래로 펼치는 세부 지표 */}
+          {selection !== null && panelRows !== null && (
+            <section
+              aria-label={`${panelTitle} 세부 목록`}
+              data-testid="detail-panel"
+              className="mt-4 rounded-lg border border-black/10 p-4 dark:border-white/15"
+            >
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-base font-semibold">
+                  {panelTitle}{" "}
+                  <span className="text-sm font-normal text-foreground/70">
+                    {panelRows.visible.length === panelRows.base.length
+                      ? `(${panelRows.base.length}건)`
+                      : `(${panelRows.base.length}건 중 ${panelRows.visible.length}건 표시)`}
+                  </span>
+                </h2>
+                <button type="button" onClick={() => setSelection(null)} className={TOOL_BUTTON}>
+                  접기
+                </button>
+              </div>
+
+              {/* 필터·정렬 */}
+              <div
+                role="group"
+                aria-label="필터와 정렬"
+                className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3"
+              >
+                <label className="flex items-center gap-2 pb-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={delayedOnly}
+                    onChange={(event) => setDelayedOnly(event.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  보완 필요(부진) 지표만 보기
+                </label>
+
+                {selection === "all" && (
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-foreground/70">지표 구분</span>
+                    <select
+                      value={categoryFilter}
+                      onChange={(event) => setCategoryFilter(event.target.value as IndicatorCategory | "")}
+                      className={CONTROL_CLASS}
+                    >
+                      <option value="">전체</option>
+                      {INDICATOR_CATEGORIES.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-foreground/70">정렬 기준</span>
+                  <select
+                    value={sortKey}
+                    onChange={(event) => setSortKey(event.target.value as SortKey)}
+                    className={CONTROL_CLASS}
+                  >
+                    {SORT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-foreground/70">정렬 방향</span>
+                  <select
+                    value={sortDirection}
+                    onChange={(event) => setSortDirection(event.target.value as SortDirection)}
+                    disabled={sortKey === "default"}
+                    className={`${CONTROL_CLASS} disabled:opacity-50`}
+                  >
+                    <option value="asc">오름차순 (낮은 것부터)</option>
+                    <option value="desc">내림차순 (높은 것부터)</option>
+                  </select>
+                </label>
+
+                {(hasActiveFilters({ delayedOnly, category: categoryFilter }) || sortKey !== "default") && (
+                  <button type="button" onClick={resetView} className={TOOL_BUTTON}>
+                    조건 초기화
+                  </button>
+                )}
+              </div>
+
+              {/* 막대 읽는 법 */}
+              <p className="mb-3 text-xs text-foreground/70">
+                막대 읽는 법: 막대 길이는 진척률(100%가 가득 찬 길이)이고, 세로선은 자료 기준일 시점의 경과율입니다.
+                막대가 세로선보다 짧으면 시간보다 뒤처진 부진지표입니다. 막대 끝의 노란 조각은 100%를 넘긴 지표입니다.
+                지표명을 누르면 필요 실적 역산, 월별 추이, 개선조치, 추진과제, 첨부파일을 볼 수 있습니다.
+              </p>
+
+              {panelRows.visible.length === 0 ? (
+                <div role="status" className="rounded-lg border border-dashed border-black/20 p-8 text-center text-sm dark:border-white/25">
+                  {indicators.length === 0 ? (
+                    <>
+                      <p>등록된 지표가 없습니다. 위의 &quot;지표 추가&quot;나 &quot;엑셀 올리기&quot;로 지표를 입력해 주세요.</p>
+                      <button
+                        type="button"
+                        onClick={handleLoadSamples}
+                        disabled={!branchReady}
+                        className={`${TOOL_BUTTON} mt-3`}
+                      >
+                        둘러보기용 샘플 지표 불러오기
+                      </button>
+                    </>
+                  ) : panelRows.base.length === 0 ? (
+                    <p>이 구분에 등록된 지표가 없습니다.</p>
+                  ) : (
+                    <p>
+                      조건에 맞는 지표가 없습니다. 위의 필터를 바꾸거나 &quot;조건 초기화&quot;를 눌러 주세요.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <IndicatorTable
+                  rows={panelRows.visible}
+                  onOpenDetail={setDetailIndex}
+                  onEdit={(index) => setFormTarget({ mode: "edit", index })}
+                  onDelete={handleDelete}
+                />
+              )}
+            </section>
+          )}
+
+          {/* 지표가 하나도 없고 아무것도 펼치지 않았을 때의 안내 */}
+          {indicators.length === 0 && selection === null && (
+            <div role="status" className="mt-4 rounded-lg border border-dashed border-black/20 p-6 text-center text-sm dark:border-white/25">
+              <p>등록된 지표가 없습니다. 위의 &quot;지표 추가&quot;나 &quot;엑셀 올리기&quot;로 지표를 입력해 주세요.</p>
+              <button type="button" onClick={handleLoadSamples} disabled={!branchReady} className={`${TOOL_BUTTON} mt-3`}>
+                둘러보기용 샘플 지표 불러오기
+              </button>
+            </div>
           )}
         </>
       )}
@@ -650,8 +816,23 @@ export default function IndicatorDashboard({
           branch={branch}
           initial={formTarget.mode === "edit" ? indicators[formTarget.index] : undefined}
           referenceDate={referenceDate}
+          otherNames={formOtherNames}
           onSubmit={handleSubmit}
           onCancel={() => setFormTarget(null)}
+        />
+      )}
+
+      {/* 지표 세부 화면: 역산·월별 추이·개선조치·추진과제·첨부파일 */}
+      {detailRow && (
+        <IndicatorDetail
+          key={detailRow.index}
+          indicator={detailRow.indicator}
+          evaluation={detailRow.evaluation}
+          referenceDate={referenceDate}
+          totalAttachmentBytes={totalAttachmentBytes(indicators)}
+          onClose={() => setDetailIndex(null)}
+          onEdit={() => setFormTarget({ mode: "edit", index: detailRow.index })}
+          onUpdate={(patch) => handleDetailUpdate(detailRow.index, patch)}
         />
       )}
     </>

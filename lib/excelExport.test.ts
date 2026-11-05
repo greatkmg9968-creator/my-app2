@@ -21,10 +21,11 @@ const cell = (indicator: Indicator, header: string, date = SAMPLE_REFERENCE_DATE
   toExportCells(rowFor(indicator, 0, date))[EXPORT_HEADERS.indexOf(header)];
 
 describe("EXPORT_HEADERS", () => {
-  it("양식 13개 열 뒤에 부진여부·경과율(%)·차이(%p)가 붙는다", () => {
-    expect(EXPORT_HEADERS).toHaveLength(16);
+  it("양식 13개 열 뒤에 집계방식·지표ID, 그 뒤에 현재실적·부진여부·경과율(%)·차이(%p)가 붙는다", () => {
+    expect(EXPORT_HEADERS).toHaveLength(19);
     expect(EXPORT_HEADERS.slice(0, 13)).toEqual(EXCEL_COLUMNS.map((c) => c.header));
-    expect(EXPORT_HEADERS.slice(13)).toEqual(["부진여부", "경과율(%)", "차이(%p)"]);
+    expect(EXPORT_HEADERS.slice(13, 15)).toEqual(["집계방식", "지표ID"]);
+    expect(EXPORT_HEADERS.slice(15)).toEqual(["현재실적", "부진여부", "경과율(%)", "차이(%p)"]);
   });
 });
 
@@ -53,12 +54,32 @@ describe("toExportCells", () => {
     expect(cell(indicator, "보완사항")).toBeNull();
   });
 
-  it("판정 보류: 진척률·차이가 빈 칸이고 부진여부는 '판정 보류'다", () => {
-    const indicator = named("정성 평가 지표");
-    expect(cell(indicator, "진척률")).toBeNull();
-    expect(cell(indicator, "차이(%p)")).toBeNull();
-    expect(cell(indicator, "부진여부")).toBe("판정 보류");
+  it("진척률을 직접 입력한 지표(정성 평가)도 진척률·차이·부진여부가 모두 채워진다", () => {
+    const indicator = named("정성 평가 지표"); // 직접 입력 88%
+    expect(cell(indicator, "진척률")).toBe(88);
+    expect(cell(indicator, "차이(%p)")).toBe(9.1);
+    expect(cell(indicator, "부진여부")).toBe("정상");
     expect(cell(indicator, "경과율(%)")).toBe(78.9);
+    expect(cell(indicator, "현재실적")).toBeNull();
+  });
+
+  it("월별 실적이 있는 지표: 실적값 칸은 입력해 둔 값(없으면 빈 칸), 현재실적 칸은 기준일까지의 값, 집계방식·지표ID가 적힌다", () => {
+    const cumulative = named("신규 고객 유치");
+    expect(cell(cumulative, "실적값")).toBeNull();
+    expect(cell(cumulative, "현재실적")).toBe(1050);
+    expect(cell(cumulative, "집계방식")).toBe("누적");
+    expect(cell(cumulative, "지표ID")).toBe("sample-1");
+    const latest = named("수신 잔액 증대");
+    expect(cell(latest, "집계방식")).toBe("월말값");
+    expect(cell(latest, "현재실적")).toBe(1300);
+    // 기준일을 앞당기면 현재실적도 그 달까지의 값으로 바뀐다 (3월 말: 1080)
+    expect(cell(latest, "현재실적", "2026-03-31")).toBe(1080);
+  });
+
+  it("비계량 지표는 집계방식·현재실적이 빈 칸이다", () => {
+    const indicator = named("내부통제 점검 이행");
+    expect(cell(indicator, "집계방식")).toBeNull();
+    expect(cell(indicator, "현재실적")).toBeNull();
   });
 
   it("범위 밖 진척률은 잘라 쓰지 않고 계산된 원래 값을 넣는다", () => {
@@ -124,7 +145,7 @@ describe("exportInfoLines (파일 위쪽 기준 정보)", () => {
       rows: SAMPLE_INDICATORS.map((indicator, index) => rowFor(indicator, index, "2026-11-04")),
     });
     const warning = lines.find((l) => l.warning);
-    expect(warning?.text).toContain("5건");
+    expect(warning?.text).toContain("6건");
     expect(warning?.text).toContain("여신 잔액 증대");
   });
 });

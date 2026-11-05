@@ -4,22 +4,28 @@
 // Plan SC: 작업 9 — 지표 직접 입력 폼. 지표 구분(부점 계량 / 부점 비계량 / 공통 계량 / 공통 비계량)을 고른 뒤
 //          그 안의 세부 평가항목을 직접 입력한다. 계량은 수치 칸, 비계량은 진척률 칸을 보여준다.
 // Plan SC: 작업 10 — 부진지표인데 보완사항이 비어 있으면 저장 버튼이 눌리지 않고 이유를 안내한다.
+// Plan SC: 작업 15·17 — 계량 지표는 집계 방식(누적 / 월말값)과 월별 실적(그 달 실적 12칸)을 입력할 수 있다.
+//          월별 실적을 입력하면 실적값은 비워도 되고, 자료 기준일이 속한 달까지의 값으로 현재 실적을 자동 계산한다.
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { calcProgress } from "@/lib/calc";
-import { formatPercent } from "@/lib/format";
+import { monthOfDate } from "@/lib/calc";
+import { formatNumber, formatPercent } from "@/lib/format";
 import {
+  actualFromValues,
   checkNoteRequired,
   emptyFormValues,
   needsDirectProgress,
   parseNumber,
+  progressFromValues,
   validateIndicatorForm,
   valuesFromIndicator,
   type IndicatorFormErrors,
   type IndicatorFormValues,
 } from "@/lib/indicatorForm";
 import {
+  AGGREGATION_LABELS,
   INDICATOR_CATEGORIES,
+  MONTHS_IN_YEAR,
   isIndicatorCategory,
   isQuantitativeCategory,
   type Indicator,
@@ -35,7 +41,9 @@ interface IndicatorFormProps {
    * 이 날짜의 경과율로 부진지표 여부(= 보완사항 필수 여부)를 판단한다.
    */
   referenceDate: string;
-  /** 검사를 통과한 지표를 넘겨준다. */
+  /** 이미 있는 다른 지표들의 이름. 같은 이름으로는 저장할 수 없다. (수정할 때는 자기 자신의 이름을 뺀다) */
+  otherNames: readonly string[];
+  /** 검사를 통과한 지표를 넘겨준다. (번호·개선조치·추진과제·첨부파일 정보는 이 폼이 다루지 않으므로 없다) */
   onSubmit: (indicator: Indicator) => void;
   /** 취소하거나 Esc를 눌렀을 때 */
   onCancel: () => void;
@@ -80,6 +88,7 @@ export default function IndicatorForm({
   branch,
   initial,
   referenceDate,
+  otherNames,
   onSubmit,
   onCancel,
 }: IndicatorFormProps) {
@@ -105,21 +114,24 @@ export default function IndicatorForm({
   const quantitative = category !== null && isQuantitativeCategory(category);
   const directProgress = needsDirectProgress(values);
 
-  // 계량 지표는 기준·목표·실적값이 있으면 진척률을 미리 계산해서 보여준다.
-  const baseNumber = parseNumber(values.baseValue);
-  const targetNumber = parseNumber(values.targetValue);
-  const actualNumber = parseNumber(values.actualValue);
-  const previewProgress =
-    baseNumber !== null && targetNumber !== null && actualNumber !== null
-      ? calcProgress(baseNumber, targetNumber, actualNumber)
-      : null;
+  // 계량 지표는 기준·목표·현재 실적(월별 실적에서 구한 값 포함)이 있으면 진척률을 미리 계산해서 보여준다.
+  const currentActual = actualFromValues(values, referenceDate);
+  const previewProgress = directProgress ? null : progressFromValues(values, referenceDate);
+  const hasMonthly = values.monthly.some((text) => text.trim() !== "");
+  const referenceMonth = (() => {
+    try {
+      return monthOfDate(referenceDate);
+    } catch {
+      return null;
+    }
+  })();
 
   // 부진지표인데 보완사항이 비어 있으면 저장할 수 없다. (입력하는 동안 바로 판단해서 보여준다)
   const noteCheck = checkNoteRequired(values, referenceDate);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = validateIndicatorForm(values, branch, referenceDate);
+    const result = validateIndicatorForm(values, branch, referenceDate, { otherNames });
     setErrors(result.errors);
     if (result.indicator) {
       onSubmit(result.indicator);
@@ -141,11 +153,20 @@ export default function IndicatorForm({
     baseValue: `${baseId}-base`,
     targetValue: `${baseId}-target`,
     actualValue: `${baseId}-actual`,
+    aggregation: `${baseId}-aggregation`,
+    monthly: `${baseId}-monthly`,
     progress: `${baseId}-progress`,
     expected: `${baseId}-expected`,
     evalDate: `${baseId}-evaldate`,
     note: `${baseId}-note`,
   };
+
+  /** 월별 실적 한 칸을 바꾼다. */
+  const setMonth = (index: number, text: string) =>
+    setValues((current) => ({
+      ...current,
+      monthly: current.monthly.map((old, i) => (i === index ? text : old)),
+    }));
 
   /** 오류가 있는 칸에 붙이는 접근성 속성 */
   const invalid = (key: keyof IndicatorFormValues, id: string) => ({
@@ -307,7 +328,12 @@ export default function IndicatorForm({
                   {...invalid("targetValue", ids.targetValue)}
                 />
               </Field>
-              <Field id={ids.actualValue} label="실적값" error={errors.actualValue}>
+              <Field
+                id={ids.actualValue}
+                label="실적값"
+                hint={hasMonthly ? "월별 실적을 입력했으면 비워도 됩니다." : undefined}
+                error={errors.actualValue}
+              >
                 <input
                   id={ids.actualValue}
                   type="text"
@@ -320,6 +346,14 @@ export default function IndicatorForm({
               </Field>
 
               <p className="text-sm sm:col-span-3" data-testid="progress-preview">
+                {hasMonthly && currentActual !== null && (
+                  <span className="mr-4" data-testid="actual-preview">
+                    <span className="text-foreground/70">
+                      현재 실적{referenceMonth !== null ? `(${referenceMonth}월까지)` : ""}:{" "}
+                    </span>
+                    <strong>{formatNumber(currentActual)}</strong>
+                  </span>
+                )}
                 <span className="text-foreground/70">진척률(자동 계산): </span>
                 <strong>
                   {directProgress
@@ -329,6 +363,69 @@ export default function IndicatorForm({
                       : formatPercent(previewProgress)}
                 </strong>
               </p>
+
+              {/* 집계 방식: 월별 실적에서 현재 실적을 어떻게 구할지 */}
+              <Field
+                id={ids.aggregation}
+                label="집계 방식"
+                hint={
+                  values.aggregation === "latest"
+                    ? "월말값: 입력한 달 중 가장 최근 달의 값을 현재 실적으로 씁니다. (잔액, 연체율처럼 그 시점의 수준을 보는 지표)"
+                    : "누적: 월별 실적을 더해서 현재 실적을 구합니다. (신규 고객 수, 판매액처럼 쌓이는 지표)"
+                }
+                error={errors.aggregation}
+                className="sm:col-span-3"
+              >
+                <select
+                  id={ids.aggregation}
+                  value={values.aggregation}
+                  onChange={set("aggregation")}
+                  className={INPUT_CLASS}
+                  {...invalid("aggregation", ids.aggregation)}
+                >
+                  <option value="cumulative">{AGGREGATION_LABELS.cumulative} (월별 실적을 더함)</option>
+                  <option value="latest">{AGGREGATION_LABELS.latest} (가장 최근 달의 값)</option>
+                </select>
+              </Field>
+
+              {/* 월별 실적: 그 달 실적 12칸 (선택) */}
+              <details className="sm:col-span-3" open={hasMonthly} data-testid="monthly-details">
+                <summary className="cursor-pointer text-sm font-medium">
+                  월별 실적 입력 (선택){hasMonthly ? " — 입력됨" : ""}
+                </summary>
+                <p className="mt-2 text-xs text-foreground/70">
+                  각 달의 &quot;그 달 실적&quot;을 입력하면 월별 누적과 추이 그래프를 지표 세부 화면에서 볼 수 있고, 자료 기준일이
+                  속한 달까지의 값으로 현재 실적이 자동 계산됩니다. 입력하지 않은 달은 비워 두세요.
+                </p>
+                <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4" role="group" aria-label="월별 실적">
+                  {Array.from({ length: MONTHS_IN_YEAR }, (_, index) => {
+                    const text = values.monthly[index] ?? "";
+                    const bad = text.trim() !== "" && parseNumber(text) === null;
+                    return (
+                      <div key={index} className="flex flex-col gap-1">
+                        <label htmlFor={`${ids.monthly}-${index}`} className="text-xs font-medium">
+                          {index + 1}월
+                        </label>
+                        <input
+                          id={`${ids.monthly}-${index}`}
+                          type="text"
+                          inputMode="decimal"
+                          value={text}
+                          onChange={(event) => setMonth(index, event.target.value)}
+                          className={INPUT_CLASS}
+                          aria-invalid={bad ? true : undefined}
+                          aria-describedby={bad ? `${ids.monthly}-error` : undefined}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                {errors.monthly && (
+                  <p id={`${ids.monthly}-error`} role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
+                    {errors.monthly}
+                  </p>
+                )}
+              </details>
             </section>
           )}
 

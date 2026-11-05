@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import type { Indicator } from "@/types/indicator";
 import {
+  aggregateMonthly,
   calcElapsedRate,
   calcGap,
   calcProgress,
@@ -12,6 +13,8 @@ import {
   hasMissingNote,
   isDelayed,
   isInPercentRange,
+  monthOfDate,
+  resolveActual,
   resolveProgress,
   round1,
   toDateString,
@@ -125,9 +128,8 @@ describe("hasMissingNote (보완사항이 빠진 부진지표)", () => {
   it("부진이어도 보완사항이 있으면 false", () => {
     expect(hasMissingNote(makeIndicator({ note: "집중 관리" }), "delayed")).toBe(false);
   });
-  it("정상·판정 보류는 보완사항이 없어도 false", () => {
+  it("정상은 보완사항이 없어도 false", () => {
     expect(hasMissingNote(makeIndicator(), "normal")).toBe(false);
-    expect(hasMissingNote(makeIndicator(), "pending")).toBe(false);
   });
 });
 
@@ -200,13 +202,97 @@ describe("evaluateIndicator (지표 한 건 평가)", () => {
     expect(under.displayProgress).toBe(0);
     expect(under.status).toBe("delayed");
   });
-  it("진척률을 알 수 없으면 판정 보류", () => {
+  it("입력 규칙상 만들 수 없는 '진척률을 알 수 없는 지표'가 들어와도 진행 없음(0%)으로 보고 부진으로 판정한다", () => {
     const result = evaluateIndicator(
       makeIndicator({ baseValue: 5, targetValue: 5, actualValue: 6 }),
       "2026-10-15",
     );
-    expect(result.status).toBe("pending");
-    expect(result.progress).toBeNull();
-    expect(result.gap).toBeNull();
+    expect(result.progress).toBe(0);
+    expect(result.status).toBe("delayed");
+  });
+  it("현재 실적(actual)을 함께 돌려준다: 수치 지표는 실적, 비계량은 null", () => {
+    const quant = evaluateIndicator(
+      makeIndicator({ baseValue: 0, targetValue: 100, actualValue: 50 }),
+      "2026-10-15",
+    );
+    expect(quant.actual).toBe(50);
+    expect(evaluateIndicator(makeIndicator({ progress: 70 }), "2026-10-15").actual).toBeNull();
+  });
+});
+
+describe("aggregateMonthly (월별 실적 → 현재 실적)", () => {
+  const months = [10, 20, null, 30, 40, null, null, null, null, null, null, null];
+  it("누적: 기준 월까지 입력한 달을 모두 더한다 (비어 있는 달은 건너뜀)", () => {
+    expect(aggregateMonthly(months, "cumulative", 5)).toBe(100);
+    expect(aggregateMonthly(months, undefined, 5)).toBe(100); // 기본은 누적
+    expect(aggregateMonthly(months, "cumulative", 2)).toBe(30);
+  });
+  it("월말값: 기준 월까지 입력한 값 중 가장 늦은 달의 값", () => {
+    expect(aggregateMonthly(months, "latest", 5)).toBe(40);
+    expect(aggregateMonthly(months, "latest", 3)).toBe(20); // 3월이 비어 있으면 2월 값
+  });
+  it("기준 월 이후에 입력한 값은 쓰지 않는다", () => {
+    expect(aggregateMonthly(months, "cumulative", 1)).toBe(10);
+    expect(aggregateMonthly([null, null, 5, null, null, null, null, null, null, null, null, null], "cumulative", 2)).toBeNull();
+  });
+  it("그 달까지 입력한 값이 하나도 없으면 null", () => {
+    expect(aggregateMonthly(Array(12).fill(null), "cumulative", 12)).toBeNull();
+  });
+  it("소수 계산 오차를 줄인다 (0.1 + 0.2)", () => {
+    expect(aggregateMonthly([0.1, 0.2, null, null, null, null, null, null, null, null, null, null], "cumulative", 12)).toBe(0.3);
+  });
+  it("음수 실적도 더한다", () => {
+    expect(aggregateMonthly([5, -2, null, null, null, null, null, null, null, null, null, null], "cumulative", 12)).toBe(3);
+  });
+});
+
+describe("resolveActual · resolveProgress (월별 실적 반영)", () => {
+  const monthlyIndicator = (overrides: Partial<Indicator> = {}) =>
+    makeIndicator({
+      baseValue: 0,
+      targetValue: 1200,
+      monthly: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, null, null],
+      ...overrides,
+    });
+  it("월별 실적이 있으면 자료 기준일이 속한 달까지의 누적이 현재 실적이다", () => {
+    expect(resolveActual(monthlyIndicator(), "2026-10-15")).toBe(1000);
+    expect(resolveActual(monthlyIndicator(), "2026-06-30")).toBe(600);
+  });
+  it("진척률은 그 현재 실적으로 계산한다 (실적값을 직접 입력했어도 월별 실적이 우선)", () => {
+    const indicator = monthlyIndicator({ actualValue: 1 });
+    expect(resolveProgress(indicator, "2026-10-15")).toBe(83.3);
+    expect(evaluateIndicator(indicator, "2026-10-15").actual).toBe(1000);
+  });
+  it("기준일을 앞당기면 그 달까지의 값으로 다시 계산된다", () => {
+    expect(resolveProgress(monthlyIndicator(), "2026-03-10")).toBe(25);
+  });
+  it("자료 기준일이 월별 실적의 첫 입력보다 이르면 입력해 둔 실적값을 쓰고, 없으면 null", () => {
+    const late = monthlyIndicator({ monthly: [null, null, null, null, null, null, null, null, null, 100, null, null] });
+    expect(resolveActual(late, "2026-03-01")).toBeNull();
+    expect(resolveActual({ ...late, actualValue: 7 }, "2026-03-01")).toBe(7);
+  });
+  it("기준일을 주지 않으면 월별 실적은 쓰지 않고 실적값만 쓴다", () => {
+    expect(resolveActual(monthlyIndicator({ actualValue: 42 }))).toBe(42);
+  });
+  it("월말값 방식은 가장 최근 달의 값이 현재 실적이다", () => {
+    const balance = makeIndicator({
+      baseValue: 1000,
+      targetValue: 1500,
+      aggregation: "latest",
+      monthly: [1020, 1050, 1080, 1100, 1130, 1160, 1200, 1230, 1270, 1300, null, null],
+    });
+    expect(resolveActual(balance, "2026-10-15")).toBe(1300);
+    expect(resolveProgress(balance, "2026-10-15")).toBe(60);
+  });
+});
+
+describe("monthOfDate", () => {
+  it("날짜의 월(1~12)을 돌려준다", () => {
+    expect(monthOfDate("2026-01-01")).toBe(1);
+    expect(monthOfDate("2026-10-15")).toBe(10);
+    expect(monthOfDate("2026-12-31")).toBe(12);
+  });
+  it("올바르지 않은 날짜면 오류", () => {
+    expect(() => monthOfDate("2026-13-01")).toThrow(RangeError);
   });
 });

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "부점 성과지표 관리",
+  title: "성과지표 통합 대시보드",
   description:
     "부점평가 담당자가 성과평가 지표의 진척률·예상달성도·보완사항을 한 화면에서 확인하는 서비스",
 };

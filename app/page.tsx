@@ -1,15 +1,14 @@
-// Design Ref: §2.2 — 지표 관리 화면(메인). 기준 정보·요약 카드·지표 입력·필터·정렬·지표 표가 있다.
+// Design Ref: §2.2 — 성과지표 통합 대시보드(메인). 지표 구분별 도넛과, 눌러서 아래로 펼치는 세부 지표가 있다.
 
 import AppShell from "@/components/AppShell";
-import IndicatorDashboard from "@/components/IndicatorDashboard";
-import { SAMPLE_BRANCH, SAMPLE_INDICATORS } from "@/lib/sampleData";
+import DashboardLoader from "@/components/DashboardLoader";
 
 export default function Home() {
   return (
-    // 로그인이 없으므로 부점 이름은 화면에서 직접 입력한다. 처음에는 샘플 부점 이름과 샘플 지표 30건을 보여주고,
+    // 이 컴퓨터의 브라우저에 저장해 둔 자료가 있으면 그것으로, 처음이면 샘플 부점 이름과 샘플 지표 30건으로 시작한다.
     // 화면에서 "전체 지우기"로 샘플을 지운 뒤 부점 이름을 바꾸고 직접 입력할 수 있다.
     <AppShell>
-      <IndicatorDashboard initialIndicators={SAMPLE_INDICATORS} initialBranch={SAMPLE_BRANCH} />
+      <DashboardLoader />
     </AppShell>
   );
 }

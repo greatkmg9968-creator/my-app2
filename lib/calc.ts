@@ -1,7 +1,11 @@
 // Design Ref: §3.3 — 계산 규칙을 한곳에 모은다. 화면을 모른 채 단독으로 동작해야 한다.
 // Plan SC: 작업 2 — 진척률, 일 단위 경과율, 부진지표 판정, 0~200 범위 검증
 
-import type { Indicator } from "@/types/indicator";
+import {
+  DEFAULT_AGGREGATION,
+  MONTHS_IN_YEAR,
+  type Indicator,
+} from "@/types/indicator";
 
 /** 진척률·예상달성도가 가질 수 있는 최솟값(%) */
 export const PERCENT_MIN = 0;
@@ -9,21 +13,26 @@ export const PERCENT_MIN = 0;
 /** 진척률·예상달성도가 가질 수 있는 최댓값(%). 목표 초과 달성을 200%까지 허용한다. */
 export const PERCENT_MAX = 200;
 
-/** 부진 판정 결과. pending은 진척률을 알 수 없어 "판정 보류"인 경우다. */
-export type IndicatorStatus = "delayed" | "normal" | "pending";
+/** 부진 판정 결과. delayed는 진척률이 경과율보다 낮은 부진(= 보완이 필요한) 지표다. */
+export type IndicatorStatus = "delayed" | "normal";
 
 /** 지표 한 건을 자료 기준일로 평가한 결과 */
 export interface IndicatorEvaluation {
-  /** 진척률(%). 알 수 없으면(직접 입력 필요) null */
-  progress: number | null;
-  /** 화면에 표시할 진척률. 0~200으로 잘라 표시한다. 알 수 없으면 null */
-  displayProgress: number | null;
+  /** 진척률(%) */
+  progress: number;
+  /** 화면에 표시할 진척률. 0~200으로 잘라 표시한다. */
+  displayProgress: number;
   /** 자료 기준일의 경과율(%) */
   elapsedRate: number;
-  /** 부진 여부. 진척률을 모르면 "pending"(판정 보류) */
+  /** 부진 여부 */
   status: IndicatorStatus;
-  /** 진척률 − 경과율(%p). 부진이면 음수. 판정 보류면 null */
-  gap: number | null;
+  /** 진척률 − 경과율(%p). 부진이면 음수 */
+  gap: number;
+  /**
+   * 자료 기준일 시점의 실적값. 월별 실적이 있으면 거기서 구한 값이고, 없으면 입력한 실적값이다.
+   * 수치로 평가하지 않는 지표(비계량)는 null이다.
+   */
+  actual: number | null;
 }
 
 /**
@@ -84,6 +93,11 @@ function parseDate(date: string): { year: number; month: number; day: number } {
   return { year, month, day };
 }
 
+/** "YYYY-MM-DD" 날짜가 몇 월인지(1~12). 올바르지 않은 날짜면 RangeError */
+export function monthOfDate(date: string): number {
+  return parseDate(date).month;
+}
+
 /** "YYYY-MM-DD" 형식의 실제로 있는 날짜면 true */
 export function isValidDateString(date: string): boolean {
   try {
@@ -139,20 +153,64 @@ export function clampForDisplay(value: number): number {
 }
 
 /**
+ * 월별 실적에서 "자료 기준일이 속한 달까지"의 현재 실적을 구한다.
+ * - 누적: 입력한 달들의 실적을 모두 더한다.
+ * - 월말값: 입력한 달 중 가장 늦은 달의 값을 그대로 쓴다.
+ * 기준일이 속한 달 이후에 입력한 값은 쓰지 않는다. 그 달까지 입력한 값이 하나도 없으면 null이다.
+ * @param monthly 1~12월의 "그 달 실적". 입력하지 않은 달은 null
+ */
+export function aggregateMonthly(
+  monthly: readonly (number | null)[],
+  mode: Indicator["aggregation"],
+  referenceMonth: number,
+): number | null {
+  const upTo = monthly.slice(0, Math.min(referenceMonth, MONTHS_IN_YEAR));
+  const entered = upTo.filter((value): value is number => value !== null && Number.isFinite(value));
+  if (entered.length === 0) return null;
+
+  if ((mode ?? DEFAULT_AGGREGATION) === "latest") {
+    return entered[entered.length - 1];
+  }
+  // 소수 계산 오차(0.1 + 0.2 = 0.30000000000000004)를 줄인다.
+  return Number(entered.reduce((sum, value) => sum + value, 0).toPrecision(12));
+}
+
+/** 월별 실적이 하나라도 입력되어 있으면 true */
+export function hasMonthlyValues(indicator: Pick<Indicator, "monthly">): boolean {
+  return (indicator.monthly ?? []).some((value) => value !== null && Number.isFinite(value));
+}
+
+/**
+ * 지표의 "현재 실적"을 정한다. (수치로 평가하지 않는 지표는 null)
+ * - 월별 실적이 있고 자료 기준일까지 입력된 값이 있으면 거기서 구한다.
+ * - 그렇지 않으면 직접 입력한 실적값을 쓴다.
+ * @param referenceDate 자료 기준일. 주지 않으면 월별 실적은 쓰지 않고 실적값만 쓴다.
+ */
+export function resolveActual(indicator: Indicator, referenceDate?: string): number | null {
+  if (referenceDate !== undefined && indicator.monthly && hasMonthlyValues(indicator)) {
+    const aggregated = aggregateMonthly(
+      indicator.monthly,
+      indicator.aggregation,
+      monthOfDate(referenceDate),
+    );
+    if (aggregated !== null) return aggregated;
+  }
+  return indicator.actualValue ?? null;
+}
+
+/**
  * 지표의 진척률을 정한다.
- * - 기준값·목표값·실적값이 모두 있는 수치 지표는 올린/입력한 진척률과 관계없이 항상 다시 계산한다.
+ * - 기준값·목표값·실적(월별 실적에서 구한 값 포함)이 모두 있는 수치 지표는 올린/입력한 진척률과
+ *   관계없이 항상 다시 계산한다.
  * - 수치 지표인데 목표값 = 기준값이면 계산할 수 없으므로 직접 입력한 진척률을 쓴다.
  * - 수치로 나타낼 수 없는 지표는 직접 입력한 진척률을 쓴다.
- * - 쓸 수 있는 값이 없으면 null("직접 입력 필요")을 돌려준다.
+ * - 쓸 수 있는 값이 없으면 null을 돌려준다. (입력 규칙상 만들 수 없는 지표라 예외적인 경우다)
  */
-export function resolveProgress(indicator: Indicator): number | null {
-  const { baseValue, targetValue, actualValue, progress } = indicator;
-  if (
-    baseValue !== undefined &&
-    targetValue !== undefined &&
-    actualValue !== undefined
-  ) {
-    const calculated = calcProgress(baseValue, targetValue, actualValue);
+export function resolveProgress(indicator: Indicator, referenceDate?: string): number | null {
+  const { baseValue, targetValue, progress } = indicator;
+  const actual = resolveActual(indicator, referenceDate);
+  if (baseValue !== undefined && targetValue !== undefined && actual !== null) {
+    const calculated = calcProgress(baseValue, targetValue, actual);
     if (calculated !== null) return calculated;
   }
   return progress ?? null;
@@ -160,24 +218,14 @@ export function resolveProgress(indicator: Indicator): number | null {
 
 /**
  * 지표 한 건을 자료 기준일로 평가한다.
- * 진척률을 알 수 없으면 부진/정상을 가리지 않고 "pending"(판정 보류)으로 둔다.
+ * 진척률을 알 수 없는 지표는 입력 규칙상 만들 수 없다. 혹시 그런 자료가 들어오면 진행이 없는 것(0%)으로 본다.
  */
 export function evaluateIndicator(
   indicator: Indicator,
   referenceDate: string,
 ): IndicatorEvaluation {
   const elapsedRate = calcElapsedRate(referenceDate);
-  const progress = resolveProgress(indicator);
-
-  if (progress === null) {
-    return {
-      progress: null,
-      displayProgress: null,
-      elapsedRate,
-      status: "pending",
-      gap: null,
-    };
-  }
+  const progress = resolveProgress(indicator, referenceDate) ?? 0;
 
   return {
     progress,
@@ -185,5 +233,6 @@ export function evaluateIndicator(
     elapsedRate,
     status: isDelayed(progress, elapsedRate) ? "delayed" : "normal",
     gap: calcGap(progress, elapsedRate),
+    actual: indicator.baseValue === undefined ? null : resolveActual(indicator, referenceDate),
   };
 }

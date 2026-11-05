@@ -1,5 +1,5 @@
 // Plan SC: 작업 8 — 필터(부진지표만, 지표 구분별)와 정렬(진척률, 차이, 지표명, 배점)이 동작한다.
-// 샘플 30건을 기준일 2026-10-15(경과율 78.9%)로 평가해 확인한다. (부진 11 · 정상 16 · 판정 보류 3)
+// 샘플 30건을 기준일 2026-10-15(경과율 78.9%)로 평가해 확인한다. (부진 11 · 정상 19)
 
 import { describe, expect, it } from "vitest";
 import { INDICATOR_CATEGORIES } from "@/types/indicator";
@@ -91,11 +91,9 @@ describe("sortRows (정렬)", () => {
     const result = sortRows(rows, "progress", "desc");
     expect(result[0].indicator.name).toBe("비이자 수익 확대"); // 260.0%
   });
-  it("판정 보류(값 없음)는 오름차순·내림차순 모두 맨 뒤에 둔다", () => {
+  it("진척률 오름차순·내림차순 모두 모든 지표가 빠짐없이 들어 있다", () => {
     for (const direction of ["asc", "desc"] as const) {
-      const result = sortRows(rows, "progress", direction);
-      const tail = result.slice(-3);
-      expect(tail.every((r) => r.evaluation.status === "pending")).toBe(true);
+      expect(sortRows(rows, "progress", direction)).toHaveLength(30);
     }
   });
   it("차이(%p) 오름차순: 가장 많이 뒤처진 지표가 먼저 나온다", () => {
