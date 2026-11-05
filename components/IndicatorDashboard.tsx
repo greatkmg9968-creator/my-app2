@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import CategoryDonuts, { type Selection } from "@/components/CategoryDonuts";
+import ChatWidget from "@/components/ChatWidget";
 import IndicatorDetail, { type DetailPatch } from "@/components/IndicatorDetail";
 import IndicatorForm from "@/components/IndicatorForm";
 import IndicatorTable from "@/components/IndicatorTable";
@@ -692,7 +693,7 @@ export default function IndicatorDashboard({
               <div
                 role="group"
                 aria-label="필터와 정렬"
-                className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3"
+                className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-2xl border border-white/10 bg-white/[.03] px-4 py-3"
               >
                 <label className="flex items-center gap-2 pb-1 text-sm">
                   <input
@@ -758,7 +759,7 @@ export default function IndicatorDashboard({
               </div>
 
               {/* 막대 읽는 법 */}
-              <p className="mb-3 text-xs text-foreground/70">
+              <p className="mb-4 rounded-2xl border border-white/10 bg-white/[.03] px-4 py-3 text-xs leading-relaxed text-gray-400">
                 막대 읽는 법: 막대 길이는 진척률(100%가 가득 찬 길이)이고, 세로선은 자료 기준일 시점의 경과율입니다.
                 막대가 세로선보다 짧으면 시간보다 뒤처진 부진지표입니다. 막대 끝의 노란 조각은 100%를 넘긴 지표입니다.
                 지표명을 누르면 필요 실적 역산, 월별 추이, 개선조치, 추진과제, 첨부파일을 볼 수 있습니다.
@@ -808,6 +809,9 @@ export default function IndicatorDashboard({
           )}
         </>
       )}
+
+      {/* 질의응답 챗봇: 지표 현황과 올려 둔 자료에 대해 브라우저 안에서만 답한다. */}
+      {rows !== null && <ChatWidget rows={rows} onOpenDetail={setDetailIndex} />}
 
       {/* 지표 입력 창 (추가·수정) */}
       {formTarget && (

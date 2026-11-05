@@ -75,10 +75,10 @@ function recordSummary(indicator: Indicator): string | null {
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-const HEAD_CELL = "whitespace-nowrap px-3 py-2 text-left font-medium";
-const NUMBER_HEAD_CELL = "whitespace-nowrap px-3 py-2 text-right font-medium";
-const CELL = "px-3 py-2 align-top";
-const NUMBER_CELL = "whitespace-nowrap px-3 py-2 text-right align-top tabular-nums";
+const HEAD_CELL = "whitespace-nowrap px-4 py-3 text-left text-xs font-medium tracking-wide text-gray-300";
+const NUMBER_HEAD_CELL = "whitespace-nowrap px-4 py-3 text-right text-xs font-medium tracking-wide text-gray-300";
+const CELL = "px-4 py-3 align-top text-gray-200";
+const NUMBER_CELL = "whitespace-nowrap px-4 py-3 text-right align-top tabular-nums text-gray-200";
 
 /** 관리 칸의 작은 버튼 모양 */
 const ACTION_BUTTON =
@@ -88,12 +88,12 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
   const showActions = onEdit !== undefined || onDelete !== undefined;
 
   return (
-    <div className="overflow-x-auto glass-panel">
+    <div className="overflow-x-auto rounded-3xl border border-white/10 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
       <table className="w-full min-w-[960px] border-collapse text-sm">
         <caption className="sr-only">
           성과지표 현황 (총 {rows.length}건)
         </caption>
-        <thead className="bg-white/[.06]">
+        <thead className="bg-gradient-to-r from-sky-300/10 via-violet-300/10 to-pink-300/10">
           <tr>
             <th scope="col" className={HEAD_CELL}>지표 구분</th>
             <th scope="col" className={HEAD_CELL}>지표명</th>
@@ -118,8 +118,8 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
                 // 부진지표는 붉은 배경과 왼쪽 굵은 선으로 강조한다. (색뿐 아니라 "부진" 글자도 함께 보여준다)
                 className={
                   evaluation.status === "delayed"
-                    ? "border-t border-white/10 border-l-4 border-l-red-600 bg-red-500/10"
-                    : "border-t border-white/10 border-l-4 border-l-transparent"
+                    ? "border-t border-white/10 border-l-4 border-l-red-400 bg-gradient-to-r from-red-400/15 via-red-400/[.04] to-transparent transition-colors hover:from-red-400/25"
+                    : "border-t border-white/10 border-l-4 border-l-transparent transition-colors hover:bg-white/[.05]"
                 }
                 data-status={evaluation.status}
               >
@@ -129,7 +129,7 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
                     <button
                       type="button"
                       onClick={() => onOpenDetail(index)}
-                      className="text-left font-medium underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground"
+                      className="text-left font-medium text-sky-200 underline decoration-sky-200/30 underline-offset-4 transition-colors hover:text-white hover:decoration-sky-200"
                       aria-label={`${indicator.name} 세부 화면 열기`}
                       data-testid="open-detail"
                     >
