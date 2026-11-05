@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
+/* 화면 전체를 어두운 테마로 고정한다. (html에 dark 클래스를 붙이고, dark: 변형이 그 클래스를 따르게 한다) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0b;
+  --foreground: #ededed;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -12,17 +16,26 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   /* 한글은 시스템 글꼴을 쓴다. 영문·숫자는 Geist, 없으면 기본 sans-serif */
   font-family: var(--font-geist-sans), "Malgun Gothic", "Apple SD Gothic Neo",
     "Noto Sans KR", sans-serif;
+}
+
+/* 카드가 처음 나타날 때 아래에서 위로 올라오며 선명해진다. 끝나면 원래 스타일로 돌아가 호버·선택 효과와 겹치지 않는다. */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    translate: 0 30px;
+  }
+}
+.card-in {
+  animation: card-in 0.8s ease-out backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-in {
+    animation: none;
+  }
 }
