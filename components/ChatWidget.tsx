@@ -277,7 +277,8 @@ export default function ChatWidget({ rows, onOpenDetail }: ChatWidgetProps) {
                                   </span>
                                 </span>
                                 <span className="block text-xs text-gray-400">
-                                  {row.category} · 진척률 {row.progress.toFixed(1)}%
+                                  {row.category} · 진척률 {row.displayProgress.toFixed(1)}%
+                                  {row.displayProgress !== row.progress ? `(원래 값 ${row.progress.toFixed(1)}%)` : ""}
                                   {row.status === "delayed" ? ` · 경과율보다 ${Math.abs(row.gap).toFixed(1)}%p 낮음` : ""} · 배점 {row.weight}
                                 </span>
                                 {row.note && <span className="mt-0.5 block text-xs text-gray-300">보완사항: {row.note}</span>}

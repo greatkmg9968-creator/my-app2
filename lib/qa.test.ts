@@ -71,6 +71,15 @@ describe("지표 질문에 답하기", () => {
     expect(result?.rows).toHaveLength(1);
   });
 
+  it("범위 밖 진척률은 0~200으로 잘라 보여주고 원래 값도 함께 둔다", () => {
+    const result = answerIndicatorQuestion("순이자마진 개선 현황", rows);
+    const row = result?.rows?.[0];
+    expect(row).toBeDefined();
+    expect(row!.displayProgress).toBeGreaterThanOrEqual(0);
+    expect(row!.displayProgress).toBeLessThanOrEqual(200);
+    if (row!.progress < 0) expect(row!.displayProgress).toBe(0);
+  });
+
   it("전체 현황 요약을 낸다", () => {
     const result = answerIndicatorQuestion("전체 현황 요약해줘", rows);
     expect(result?.title).toBe("전체 현황 요약");

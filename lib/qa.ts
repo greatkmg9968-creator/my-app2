@@ -20,7 +20,10 @@ export interface QaRow {
   index: number;
   name: string;
   category: IndicatorCategory;
+  /** 계산된 원래 진척률 (0~200 밖일 수 있다) */
   progress: number;
+  /** 화면에 보여줄 진척률: 0~200으로 잘라 표시한다. */
+  displayProgress: number;
   gap: number;
   status: "delayed" | "normal";
   weight: number;
@@ -94,6 +97,7 @@ function toQaRow(row: IndicatorRow): QaRow {
     name: row.indicator.name,
     category: row.indicator.category,
     progress: row.evaluation.progress,
+    displayProgress: row.evaluation.displayProgress,
     gap: row.evaluation.gap,
     status: row.evaluation.status,
     weight: row.indicator.weight,
@@ -142,7 +146,9 @@ export function answerIndicatorQuestion(question: string, rows: IndicatorRow[]):
     const { indicator, evaluation } = named;
     const lines = [
       `지표 구분: ${indicator.category}`,
-      `진척률 ${evaluation.progress.toFixed(1)}% · 경과율 ${evaluation.elapsedRate.toFixed(1)}% (${
+      `진척률 ${evaluation.displayProgress.toFixed(1)}%${
+        evaluation.displayProgress !== evaluation.progress ? `(원래 값 ${evaluation.progress.toFixed(1)}%)` : ""
+      } · 경과율 ${evaluation.elapsedRate.toFixed(1)}% (${
         evaluation.status === "delayed"
           ? `부진, 경과율보다 ${Math.abs(evaluation.gap).toFixed(1)}%p 낮음`
           : "정상"
