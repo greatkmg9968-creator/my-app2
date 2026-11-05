@@ -15,10 +15,16 @@ interface CategoryDonutsProps {
   onSelect: (category: IndicatorCategory) => void;
 }
 
-const SIZE = 140;
-const CENTER = SIZE / 2;
+// 3D처럼 보이는 도넛: 고리를 비스듬히 눕히고(세로 0.6배), 아래로 겹겹이 쌓아 두께를 만들고, 윗면에 광택과 바닥 그림자를 준다.
+const VIEW_W = 160;
+const VIEW_H = 124;
+const CX = VIEW_W / 2;
+const CY = 50;
 const RADIUS = 54;
-const STROKE = 16;
+const STROKE = 18;
+const TILT = 0.6;
+const DEPTH_LAYERS = 10;
+const DEPTH_STEP = 1.7;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 /** 도넛 한 개: 둘레의 초록 부분이 정상, 붉은 부분이 보완(부진) 지표의 비율이다. */
@@ -27,60 +33,82 @@ function Donut({ summary }: { summary: CategorySummary }) {
   const normalLength = total === 0 ? 0 : (CIRCUMFERENCE * (normalRate ?? 0)) / 100;
   const delayedLength = total === 0 ? 0 : (CIRCUMFERENCE * (delayedRate ?? 0)) / 100;
 
+  /** 고리 한 겹: 바탕 고리와 정상·보완 호를 칠한다. (12시 방향에서 시계 방향으로 정상 → 보완 순서) */
+  const ring = (colors: { track: string; normal: string; delayed: string }, part: boolean) => (
+    <g transform="rotate(-90)">
+      <circle r={RADIUS} fill="none" strokeWidth={STROKE} stroke={colors.track} />
+      {normalLength > 0 && (
+        <circle
+          r={RADIUS}
+          fill="none"
+          strokeWidth={STROKE}
+          stroke={colors.normal}
+          strokeDasharray={`${normalLength} ${CIRCUMFERENCE - normalLength}`}
+          data-part={part ? "normal" : undefined}
+        />
+      )}
+      {delayedLength > 0 && (
+        <circle
+          r={RADIUS}
+          fill="none"
+          strokeWidth={STROKE}
+          stroke={colors.delayed}
+          strokeDasharray={`${delayedLength} ${CIRCUMFERENCE - delayedLength}`}
+          strokeDashoffset={-normalLength}
+          data-part={part ? "delayed" : undefined}
+        />
+      )}
+    </g>
+  );
+
   return (
-    <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-36 w-36" aria-hidden="true">
-      {/* 바탕 고리 */}
-      <circle
-        cx={CENTER}
-        cy={CENTER}
-        r={RADIUS}
-        fill="none"
-        strokeWidth={STROKE}
-        className="stroke-white/10"
+    <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="h-auto w-44" aria-hidden="true">
+      <defs>
+        {/* 윗면 광택: 고리 위쪽은 밝고 아래쪽은 투명 */}
+        <linearGradient id="donut-gloss" gradientUnits="userSpaceOnUse" x1="0" y1={-RADIUS} x2="0" y2={RADIUS}>
+          <stop offset="0" stopColor="#fff" stopOpacity="0.5" />
+          <stop offset="0.55" stopColor="#fff" stopOpacity="0.05" />
+          <stop offset="1" stopColor="#000" stopOpacity="0.25" />
+        </linearGradient>
+        <filter id="donut-shadow" x="-30%" y="-80%" width="160%" height="260%">
+          <feGaussianBlur stdDeviation="5" />
+        </filter>
+      </defs>
+
+      {/* 바닥 그림자 */}
+      <ellipse
+        cx={CX}
+        cy={CY + DEPTH_LAYERS * DEPTH_STEP * TILT + 16}
+        rx="62"
+        ry="13"
+        fill="rgba(0,0,0,0.65)"
+        filter="url(#donut-shadow)"
       />
-      {/* 12시 방향에서 시계 방향으로 정상 → 보완 순서로 칠한다. */}
-      <g transform={`rotate(-90 ${CENTER} ${CENTER})`}>
-        {normalLength > 0 && (
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS}
-            fill="none"
-            strokeWidth={STROKE}
-            strokeDasharray={`${normalLength} ${CIRCUMFERENCE - normalLength}`}
-            className="stroke-emerald-500"
-            data-part="normal"
-          />
-        )}
-        {delayedLength > 0 && (
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS}
-            fill="none"
-            strokeWidth={STROKE}
-            strokeDasharray={`${delayedLength} ${CIRCUMFERENCE - delayedLength}`}
-            strokeDashoffset={-normalLength}
-            className="stroke-red-500"
-            data-part="delayed"
-          />
-        )}
+
+      <g transform={`translate(${CX} ${CY}) scale(1 ${TILT})`}>
+        {/* 두께(옆면): 어두운 고리를 아래로 겹겹이 쌓는다. 가장 아래층부터 그린다. */}
+        {Array.from({ length: DEPTH_LAYERS }, (_, i) => DEPTH_LAYERS - i).map((layer) => (
+          <g key={layer} transform={`translate(0 ${layer * DEPTH_STEP})`}>
+            {ring({ track: "#232327", normal: "#047857", delayed: "#991b1b" }, false)}
+          </g>
+        ))}
+        {/* 윗면 */}
+        {ring({ track: "#3a3a40", normal: "#34d399", delayed: "#f87171" }, true)}
+        {/* 윗면 광택 */}
+        <circle r={RADIUS} fill="none" strokeWidth={STROKE} stroke="url(#donut-gloss)" />
+        {/* 안쪽 가장자리의 얇은 하이라이트 */}
+        <circle r={RADIUS - STROKE / 2} fill="none" strokeWidth="1" stroke="rgba(255,255,255,0.35)" />
       </g>
-      <text
-        x={CENTER}
-        y={CENTER - 2}
-        textAnchor="middle"
-        className="fill-white text-[22px] font-semibold"
-      >
+
+      <text x={CX} y={CY - 1} textAnchor="middle" className="fill-white text-[20px] font-semibold">
         {normalRate === null ? "-" : formatPercent(normalRate)}
       </text>
-      <text x={CENTER} y={CENTER + 18} textAnchor="middle" className="fill-gray-400 text-[11px]">
+      <text x={CX} y={CY + 14} textAnchor="middle" className="fill-gray-400 text-[10px]">
         정상 비율
       </text>
     </svg>
   );
 }
-
 /** 카드마다 다른 빛깔. 테두리와 카드 뒤의 은은한 빛에 같은 그라데이션을 쓴다. (구분 순서대로) */
 const GRADIENTS = [
   "linear-gradient(137deg, #FF3D77 0%, #FFB1CE 45%, #FF9D3C 100%)",
