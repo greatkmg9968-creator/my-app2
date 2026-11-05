@@ -50,7 +50,7 @@ interface IndicatorFormProps {
 }
 
 const INPUT_CLASS =
-  "w-full rounded border border-black/20 bg-background px-2 py-1.5 text-sm aria-[invalid=true]:border-red-600 dark:border-white/25";
+  "field w-full text-sm";
 
 /** 라벨 + 입력칸 + 안내 + 오류 문구를 묶는 칸 */
 function Field({
@@ -76,7 +76,7 @@ function Field({
       {children}
       {hint && <p className="text-xs text-foreground/70">{hint}</p>}
       {error && (
-        <p id={`${id}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
+        <p id={`${id}-error`} role="alert" className="text-xs text-red-400">
           {error}
         </p>
       )}
@@ -183,10 +183,10 @@ export default function IndicatorForm({
         event.preventDefault();
         onCancel();
       }}
-      className="m-auto w-[min(42rem,calc(100vw-2rem))] rounded-lg border border-black/20 bg-background p-0 text-foreground shadow-xl backdrop:bg-black/40 dark:border-white/25"
+      className="m-auto w-[min(42rem,calc(100vw-2rem))] glass-dialog p-0 text-foreground"
     >
       <form onSubmit={handleSubmit} noValidate className="flex max-h-[90vh] flex-col">
-        <header className="border-b border-black/10 px-5 py-3 dark:border-white/15">
+        <header className="border-b border-white/10 px-5 py-3">
           <h2 id={`${baseId}-title`} className="text-base font-semibold">
             {initial ? "지표 수정" : "지표 추가"}
           </h2>
@@ -207,7 +207,7 @@ export default function IndicatorForm({
               {INDICATOR_CATEGORIES.map((option) => (
                 <label
                   key={option}
-                  className="flex cursor-pointer items-center gap-2 rounded border border-black/20 px-3 py-2 text-sm has-[:checked]:border-foreground has-[:checked]:bg-black/5 dark:border-white/25 dark:has-[:checked]:bg-white/10"
+                  className="flex cursor-pointer items-center gap-2 rounded-2xl border border-white/20 px-3 py-2 text-sm hover:border-white/40 has-[:checked]:border-sky-300 has-[:checked]:bg-sky-300/10"
                 >
                   <input
                     type="radio"
@@ -227,7 +227,7 @@ export default function IndicatorForm({
               <p
                 id={`${baseId}-category-error`}
                 role="alert"
-                className="text-xs text-red-600 dark:text-red-400"
+                className="text-xs text-red-400"
               >
                 {errors.category}
               </p>
@@ -421,7 +421,7 @@ export default function IndicatorForm({
                   })}
                 </div>
                 {errors.monthly && (
-                  <p id={`${ids.monthly}-error`} role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
+                  <p id={`${ids.monthly}-error`} role="alert" className="mt-2 text-xs text-red-400">
                     {errors.monthly}
                   </p>
                 )}
@@ -488,11 +488,11 @@ export default function IndicatorForm({
           </Field>
         </div>
 
-        <footer className="flex justify-end gap-2 border-t border-black/10 px-5 py-3 dark:border-white/15">
+        <footer className="flex justify-end gap-2 border-t border-white/10 px-5 py-3">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded border border-black/20 px-4 py-1.5 text-sm hover:bg-black/5 dark:border-white/25 dark:hover:bg-white/10"
+            className="btn"
           >
             취소
           </button>
@@ -501,7 +501,7 @@ export default function IndicatorForm({
             // 부진지표인데 보완사항이 비어 있으면 눌리지 않는다. 이유는 보완사항 칸 아래에 보인다.
             disabled={noteCheck.required}
             aria-describedby={noteCheck.required ? `${ids.note}-error` : undefined}
-            className="rounded bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn btn-primary"
           >
             {initial ? "수정 저장" : "지표 추가"}
           </button>

@@ -52,7 +52,7 @@ function Section({
   return (
     <section
       aria-label={title}
-      className="rounded-lg border border-black/10 p-4 dark:border-white/15"
+      className="glass-panel p-4"
       data-testid={testId}
     >
       <h3 className="text-base font-semibold">{title}</h3>
@@ -108,11 +108,11 @@ export default function IndicatorDetail({
         event.preventDefault();
         onClose();
       }}
-      className="m-auto w-[min(60rem,calc(100vw-2rem))] rounded-lg border border-black/20 bg-background p-0 text-foreground shadow-xl backdrop:bg-black/40 dark:border-white/25"
+      className="m-auto w-[min(60rem,calc(100vw-2rem))] glass-dialog p-0 text-foreground"
       data-testid="indicator-detail"
     >
       <div className="flex max-h-[92vh] flex-col">
-        <header className="flex flex-wrap items-start justify-between gap-3 border-b border-black/10 px-5 py-4 dark:border-white/15">
+        <header className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 px-5 py-4">
           <div>
             <p className="text-xs text-foreground/70">{indicator.category}</p>
             <h2 id={titleId} className="text-lg font-semibold">
@@ -123,14 +123,14 @@ export default function IndicatorDetail({
             <button
               type="button"
               onClick={onEdit}
-              className="rounded border border-black/20 px-3 py-1 text-sm hover:bg-black/5 dark:border-white/25 dark:hover:bg-white/10"
+              className="btn"
             >
               지표 수정
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded bg-foreground px-4 py-1 text-sm font-medium text-background hover:opacity-90"
+              className="btn btn-primary"
             >
               닫기
             </button>
@@ -145,7 +145,7 @@ export default function IndicatorDetail({
               <Fact label="평가방법">{indicator.method}</Fact>
               <Fact label="배점">{formatNumber(indicator.weight)}</Fact>
               <Fact label="진척률">
-                <span className={delayed ? "text-red-700 dark:text-red-400" : undefined}>
+                <span className={delayed ? "text-red-400" : undefined}>
                   {formatPercent(evaluation.displayProgress)}
                 </span>
                 {evaluation.displayProgress !== evaluation.progress && (
@@ -160,7 +160,7 @@ export default function IndicatorDetail({
                     <span className="mr-1.5 inline-block rounded bg-red-600 px-1.5 py-0.5 text-xs font-medium text-white">
                       보완 필요
                     </span>
-                    <span className="text-xs font-normal text-red-700 dark:text-red-400">
+                    <span className="text-xs font-normal text-red-400">
                       {formatBehindText(evaluation.gap)}
                     </span>
                   </>
@@ -193,7 +193,7 @@ export default function IndicatorDetail({
             <div className="mt-4">
               <p className="text-xs text-foreground/60">보완사항</p>
               {missingNote ? (
-                <p role="alert" className="mt-0.5 text-sm font-medium text-red-700 dark:text-red-400">
+                <p role="alert" className="mt-0.5 text-sm font-medium text-red-400">
                   부진지표인데 보완사항이 비어 있습니다. &quot;지표 수정&quot;에서 입력해 주세요.
                 </p>
               ) : (
@@ -232,7 +232,7 @@ export default function IndicatorDetail({
                 <button
                   type="button"
                   onClick={onEdit}
-                  className="mt-2 rounded border border-black/20 px-3 py-1 text-xs hover:bg-black/5 dark:border-white/25 dark:hover:bg-white/10"
+                  className="btn btn-sm mt-2"
                 >
                   월별 실적 입력하러 가기
                 </button>
@@ -243,7 +243,7 @@ export default function IndicatorDetail({
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full min-w-[480px] border-collapse text-sm" data-testid="monthly-table">
                     <caption className="sr-only">월별 실적표</caption>
-                    <thead className="bg-black/[.04] dark:bg-white/[.06]">
+                    <thead className="bg-white/[.06]">
                       <tr>
                         <th scope="col" className="px-3 py-1.5 text-left font-medium">월</th>
                         <th scope="col" className="px-3 py-1.5 text-right font-medium">그 달 실적</th>
@@ -264,7 +264,7 @@ export default function IndicatorDetail({
                         return (
                           <tr
                             key={point.month}
-                            className={`border-t border-black/10 dark:border-white/15 ${
+                            className={`border-t border-white/10 ${
                               point.month === referenceMonth ? "bg-blue-600/10" : ""
                             }`}
                           >
@@ -276,7 +276,7 @@ export default function IndicatorDetail({
                             <td className="px-3 py-1.5 text-right tabular-nums text-foreground/70">{formatNumber(point.plan !== null ? Number(point.plan.toFixed(2)) : undefined)}</td>
                             <td
                               className={`px-3 py-1.5 text-right tabular-nums ${
-                                diff === null ? "" : better ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"
+                                diff === null ? "" : better ? "text-emerald-400" : "text-red-400"
                               }`}
                             >
                               {diff === null ? EMPTY_MARK : `${diff > 0 ? "+" : ""}${formatNumber(Number(diff.toFixed(2)))}`}

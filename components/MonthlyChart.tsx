@@ -67,7 +67,7 @@ export default function MonthlyChart({ series, referenceMonth, levelLabel }: Mon
               x2={WIDTH - PAD.right}
               y1={y(tick)}
               y2={y(tick)}
-              className="stroke-black/10 dark:stroke-white/15"
+              className="stroke-white/10"
             />
             <text
               x={PAD.left - 8}

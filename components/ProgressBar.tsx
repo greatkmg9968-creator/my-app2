@@ -23,7 +23,7 @@ export default function ProgressBar({ progress, elapsedRate, delayed }: Progress
       aria-label={`진척률 ${formatPercent(progress)}, 경과율 ${formatPercent(elapsedRate)}${
         overflow ? ", 100% 초과 달성" : ""
       }`}
-      className="relative ml-auto h-2.5 w-32 rounded-full bg-black/10 dark:bg-white/20"
+      className="relative ml-auto h-2.5 w-32 rounded-full bg-white/15"
       data-fill={fillPercent}
       data-overflow={overflow}
     >

@@ -51,7 +51,7 @@ export default function DashboardLoader() {
 
   if (start === null) {
     return (
-      <p role="status" className="rounded-lg border border-dashed border-black/20 p-8 text-center text-sm dark:border-white/25">
+      <p role="status" className="rounded-3xl border border-dashed border-white/20 p-8 text-center text-sm text-gray-300">
         저장된 자료를 불러오는 중입니다.
       </p>
     );

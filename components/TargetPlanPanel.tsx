@@ -15,7 +15,7 @@ interface TargetPlanPanelProps {
 /** 한 줄: 제목과 값 */
 function Row({ label, children, testId }: { label: string; children: React.ReactNode; testId?: string }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-black/10 py-2 text-sm last:border-b-0 dark:border-white/15">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-white/10 py-2 text-sm last:border-b-0">
       <dt className="text-foreground/70">{label}</dt>
       <dd className="font-medium tabular-nums" data-testid={testId}>
         {children}
@@ -41,7 +41,7 @@ export default function TargetPlanPanel({ plan, elapsedRate, referenceMonth }: T
       {plan.achieved ? (
         <p
           role="status"
-          className="rounded border border-emerald-600/50 bg-emerald-500/10 px-3 py-2 text-sm font-medium"
+          className="rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-3 py-2 text-sm font-medium"
         >
           목표를 이미 달성했습니다.
         </p>
@@ -79,9 +79,9 @@ export default function TargetPlanPanel({ plan, elapsedRate, referenceMonth }: T
         </Row>
         <Row label="부진 탈출선까지 더 필요한 양" testId="plan-catchup-remaining">
           {plan.catchUpRemaining === 0 ? (
-            <span className="text-emerald-700 dark:text-emerald-400">이미 넘었습니다</span>
+            <span className="text-emerald-400">이미 넘었습니다</span>
           ) : (
-            <span className="text-red-700 dark:text-red-400">{unitless(plan.catchUpRemaining)}</span>
+            <span className="text-red-400">{unitless(plan.catchUpRemaining)}</span>
           )}
         </Row>
       </dl>

@@ -36,7 +36,7 @@ interface AttachmentPanelProps {
 const ACCEPT = ".hwp,.hwpx,.xls,.xlsx,.xlsm,.csv,.pdf,.doc,.docx,.ppt,.pptx,.txt,.png,.jpg,.jpeg";
 
 const SMALL_BUTTON =
-  "rounded border border-black/20 px-2 py-0.5 text-xs hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/25 dark:hover:bg-white/10";
+  "btn btn-sm";
 
 /** 파일 내용을 브라우저가 내려받게 한다. */
 function downloadBlob(blob: Blob, fileName: string): void {
@@ -159,7 +159,7 @@ export default function AttachmentPanel({ attachments, totalBytes, onChange }: A
 
   if (!available) {
     return (
-      <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+      <p role="alert" className="text-sm text-red-400">
         이 브라우저에서는 파일 저장소를 쓸 수 없어서 파일을 올릴 수 없습니다. (시크릿 창이거나 저장이 막혀 있을 수 있습니다)
       </p>
     );
@@ -178,14 +178,14 @@ export default function AttachmentPanel({ attachments, totalBytes, onChange }: A
           const inputId = `${baseId}-${kind}`;
           const files = attachments.filter((item) => item.kind === kind);
           return (
-            <section key={kind} aria-label={`${kind} 파일`} className="rounded border border-black/10 p-3 dark:border-white/15">
+            <section key={kind} aria-label={`${kind} 파일`} className="rounded-2xl border border-white/10 bg-white/[.03] p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h4 className="text-sm font-semibold">
                   {kind === "추진과제" ? "추진과제 자료" : "실적자료"} ({files.length})
                 </h4>
                 <label
                   htmlFor={inputId}
-                  className={`cursor-pointer rounded bg-foreground px-3 py-1 text-xs font-medium text-background hover:opacity-90 ${
+                  className={`btn btn-primary btn-sm ${
                     busy ? "pointer-events-none opacity-50" : ""
                   }`}
                 >
@@ -211,7 +211,7 @@ export default function AttachmentPanel({ attachments, totalBytes, onChange }: A
               ) : (
                 <ul className="space-y-2">
                   {files.map((meta) => (
-                    <li key={meta.id} className="rounded border border-black/10 p-2 text-sm dark:border-white/15" data-testid="attachment-item">
+                    <li key={meta.id} className="rounded-xl border border-white/10 bg-white/[.03] p-2 text-sm" data-testid="attachment-item">
                       <p className="break-all font-medium">{meta.name}</p>
                       <p className="mt-0.5 text-xs text-foreground/70">
                         {fileKindLabel(meta)} · {formatFileSize(meta.size)} · {dayOf(meta.addedAt)}
@@ -242,7 +242,7 @@ export default function AttachmentPanel({ attachments, totalBytes, onChange }: A
         <p
           role={message.kind === "error" ? "alert" : "status"}
           data-testid="attachment-message"
-          className={`mt-3 text-sm ${message.kind === "error" ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}
+          className={`mt-3 text-sm ${message.kind === "error" ? "text-red-400" : "text-emerald-400"}`}
         >
           {message.text}
         </p>

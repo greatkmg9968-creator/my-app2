@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Noto_Sans_KR, Sora } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// 영문·숫자용 Sora(가변 굵기)와 한글용 Noto Sans KR. 어두운 배경에서 또렷하고 단정한 글꼴이다.
+const sora = Sora({
+  variable: "--font-sora",
   subsets: ["latin"],
+  display: "swap",
+});
+
+const notoKr = Noto_Sans_KR({
+  variable: "--font-noto-kr",
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+  preload: false,
 });
 
 const geistMono = Geist_Mono({
@@ -22,7 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      className={`${sora.variable} ${notoKr.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

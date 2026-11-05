@@ -56,7 +56,7 @@ function ProgressCell({ evaluation }: { evaluation: IndicatorEvaluation }) {
           <span className="inline-block rounded bg-red-600 px-1.5 py-0.5 text-xs font-medium text-white">
             부진
           </span>
-          <span className="mt-0.5 block text-xs text-red-700 dark:text-red-300">
+          <span className="mt-0.5 block text-xs text-red-300">
             {formatBehindText(gap)}
           </span>
         </span>
@@ -82,18 +82,18 @@ const NUMBER_CELL = "whitespace-nowrap px-3 py-2 text-right align-top tabular-nu
 
 /** 관리 칸의 작은 버튼 모양 */
 const ACTION_BUTTON =
-  "rounded border border-black/20 px-2 py-0.5 text-xs hover:bg-black/5 dark:border-white/25 dark:hover:bg-white/10";
+  "btn btn-sm";
 
 export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }: IndicatorTableProps) {
   const showActions = onEdit !== undefined || onDelete !== undefined;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/15">
+    <div className="overflow-x-auto glass-panel">
       <table className="w-full min-w-[960px] border-collapse text-sm">
         <caption className="sr-only">
           성과지표 현황 (총 {rows.length}건)
         </caption>
-        <thead className="bg-black/[.04] dark:bg-white/[.06]">
+        <thead className="bg-white/[.06]">
           <tr>
             <th scope="col" className={HEAD_CELL}>지표 구분</th>
             <th scope="col" className={HEAD_CELL}>지표명</th>
@@ -118,8 +118,8 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
                 // 부진지표는 붉은 배경과 왼쪽 굵은 선으로 강조한다. (색뿐 아니라 "부진" 글자도 함께 보여준다)
                 className={
                   evaluation.status === "delayed"
-                    ? "border-t border-black/10 border-l-4 border-l-red-600 bg-red-500/10 dark:border-white/15"
-                    : "border-t border-black/10 border-l-4 border-l-transparent dark:border-white/15"
+                    ? "border-t border-white/10 border-l-4 border-l-red-600 bg-red-500/10"
+                    : "border-t border-white/10 border-l-4 border-l-transparent"
                 }
                 data-status={evaluation.status}
               >
@@ -158,12 +158,12 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
                       <button
                         type="button"
                         onClick={() => onEdit(index)}
-                        className="rounded border border-red-600 px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-500/10 dark:text-red-300"
+                        className="btn btn-sm btn-danger"
                       >
                         보완사항 입력 필요
                       </button>
                     ) : (
-                      <span className="text-xs font-medium text-red-700 dark:text-red-300">
+                      <span className="text-xs font-medium text-red-300">
                         보완사항 입력 필요
                       </span>
                     )

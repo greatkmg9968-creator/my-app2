@@ -26,17 +26,17 @@ import {
 } from "@/types/indicator";
 
 const INPUT_CLASS =
-  "w-full rounded border border-black/20 bg-background px-2 py-1.5 text-sm aria-[invalid=true]:border-red-600 dark:border-white/25";
+  "field w-full text-sm";
 const SMALL_BUTTON =
-  "rounded border border-black/20 px-2 py-0.5 text-xs hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/25 dark:hover:bg-white/10";
+  "btn btn-sm";
 const PRIMARY_BUTTON =
-  "rounded bg-foreground px-3 py-1 text-sm font-medium text-background hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
+  "btn btn-primary";
 
 /** 진행 상태별 표시 색 */
 const STATUS_TONE: Record<WorkStatus, string> = {
-  예정: "bg-black/10 dark:bg-white/15",
-  진행: "bg-blue-600/15 text-blue-800 dark:text-blue-200",
-  완료: "bg-emerald-600/15 text-emerald-800 dark:text-emerald-200",
+  예정: "bg-white/10 text-gray-300",
+  진행: "bg-sky-400/15 text-sky-200",
+  완료: "bg-emerald-400/15 text-emerald-200",
 };
 
 /** 목록에서 바로 진행 상태를 바꾸는 선택 상자 */
@@ -84,7 +84,7 @@ function FormField({
       </label>
       {children}
       {error && (
-        <p id={`${id}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
+        <p id={`${id}-error`} role="alert" className="text-xs text-red-400">
           {error}
         </p>
       )}
@@ -152,7 +152,7 @@ export function ActionsPanel({ actions, defaultDate, onChange }: ActionsPanelPro
           {sorted.map(({ action, index }) => (
             <li
               key={index}
-              className="rounded border border-black/10 p-3 text-sm dark:border-white/15"
+              className="rounded-2xl border border-white/10 bg-white/[.03] p-3 text-sm"
               data-testid="action-item"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -204,7 +204,7 @@ export function ActionsPanel({ actions, defaultDate, onChange }: ActionsPanelPro
         <form
           onSubmit={submit}
           noValidate
-          className="mt-3 grid gap-3 rounded border border-black/20 p-3 sm:grid-cols-2 dark:border-white/25"
+          className="mt-3 grid gap-3 rounded-2xl border border-white/15 bg-white/[.03] p-3 sm:grid-cols-2"
           aria-label={editing === "new" ? "개선조치 추가" : "개선조치 수정"}
         >
           <FormField id={`${baseId}-date`} label="조치 날짜" error={errors.date}>
@@ -311,7 +311,7 @@ export function TasksPanel({ tasks, onChange }: TasksPanelProps) {
           {tasks.map((task, index) => (
             <li
               key={index}
-              className="rounded border border-black/10 p-3 text-sm dark:border-white/15"
+              className="rounded-2xl border border-white/10 bg-white/[.03] p-3 text-sm"
               data-testid="task-item"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -362,7 +362,7 @@ export function TasksPanel({ tasks, onChange }: TasksPanelProps) {
         <form
           onSubmit={submit}
           noValidate
-          className="mt-3 grid gap-3 rounded border border-black/20 p-3 sm:grid-cols-2 dark:border-white/25"
+          className="mt-3 grid gap-3 rounded-2xl border border-white/15 bg-white/[.03] p-3 sm:grid-cols-2"
           aria-label={editing === "new" ? "추진과제 추가" : "추진과제 수정"}
         >
           <div className="sm:col-span-2">

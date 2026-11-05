@@ -5,23 +5,212 @@
 
 :root {
   --background: #0a0a0b;
-  --foreground: #ededed;
+  --foreground: #e7e9ee; /* 순백 대신 아주 연한 회청색 */
+  --surface: #141416; /* 패널 안쪽 면 */
+  --surface-2: #1a1a1c; /* 카드 안쪽 면 */
+  --muted: #9aa1b2; /* 보조 글자 (회색) */
+  --accent-sky: #7dd3fc;
+  --accent-violet: #c4b5fd;
+  --accent-pink: #f9a8d4;
+  --accent-amber: #fcd34d;
   color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sora), var(--font-noto-kr);
+  --font-display: var(--font-sora);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(60rem 30rem at 85% -5%, rgba(125, 211, 252, 0.07), transparent 60%),
+    radial-gradient(50rem 30rem at -5% 20%, rgba(196, 181, 253, 0.06), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
-  /* 한글은 시스템 글꼴을 쓴다. 영문·숫자는 Geist, 없으면 기본 sans-serif */
-  font-family: var(--font-geist-sans), "Malgun Gothic", "Apple SD Gothic Neo",
-    "Noto Sans KR", sans-serif;
+  /* 영문·숫자는 Sora, 한글은 Noto Sans KR. 둘 다 못 불러오면 시스템 글꼴 */
+  font-family: var(--font-sora), var(--font-noto-kr), "Malgun Gothic", "Apple SD Gothic Neo",
+    sans-serif;
+  letter-spacing: -0.005em;
+}
+
+/* 제목류는 Sora를 먼저 써서 숫자와 영문이 또렷하게 */
+h1,
+h2,
+h3 {
+  font-family: var(--font-sora), var(--font-noto-kr), "Malgun Gothic", sans-serif;
+  letter-spacing: -0.015em;
+}
+
+/* 누를 수 있는 것은 모두 손가락 모양 커서, 막힌 것은 금지 표시 */
+a[href],
+button,
+summary,
+select,
+label[for],
+input[type="checkbox"],
+input[type="radio"],
+input[type="file"],
+input[type="date"],
+[role="button"] {
+  cursor: pointer;
+}
+button:disabled,
+select:disabled,
+input:disabled {
+  cursor: not-allowed;
+}
+
+/* ── 공통 부품 ─────────────────────────────────────── */
+@layer components {
+  /* 그라데이션 테두리와 은은한 빛이 있는 패널 */
+  .glass-panel {
+    --g1: rgba(255, 255, 255, 0.3);
+    --g2: rgba(125, 211, 252, 0.4);
+    --glow: rgba(125, 211, 252, 0.1);
+    border: 2px solid transparent;
+    border-radius: 28px;
+    background:
+      linear-gradient(var(--surface), var(--surface)) padding-box,
+      linear-gradient(137deg, var(--g1) 0%, rgba(255, 255, 255, 0.05) 45%, var(--g2) 100%) border-box;
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      0 0 60px var(--glow);
+  }
+  .glass-panel.panel-violet {
+    --g1: rgba(224, 174, 255, 0.55);
+    --g2: rgba(67, 97, 238, 0.5);
+    --glow: rgba(167, 139, 250, 0.12);
+  }
+  .glass-panel.panel-amber {
+    --g1: rgba(255, 177, 206, 0.5);
+    --g2: rgba(255, 157, 60, 0.5);
+    --glow: rgba(255, 157, 60, 0.1);
+  }
+  .glass-panel.panel-green {
+    --g1: rgba(217, 249, 157, 0.5);
+    --g2: rgba(14, 165, 233, 0.45);
+    --glow: rgba(52, 211, 153, 0.1);
+  }
+
+  /* 입력 창(대화상자) */
+  .glass-dialog {
+    border: 2px solid transparent;
+    border-radius: 28px;
+    background:
+      linear-gradient(var(--surface-2), var(--surface-2)) padding-box,
+      linear-gradient(137deg, #4361ee 0%, #e0aeff 45%, #f72585 100%) border-box;
+    box-shadow:
+      0 24px 80px rgba(0, 0, 0, 0.65),
+      0 0 70px rgba(167, 139, 250, 0.2);
+    color: var(--foreground);
+  }
+
+  /* 버튼: 유리 느낌 알약. 올리면 하늘색 빛이 번지고 살짝 뜬다. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.4rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: #e7e9ee;
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+  }
+  .btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(125, 211, 252, 0.65);
+    box-shadow: 0 0 22px rgba(125, 211, 252, 0.28);
+    transform: translateY(-1px);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  .btn:focus-visible {
+    outline: 2px solid #9fe0ff;
+    outline-offset: 3px;
+  }
+  .btn:disabled {
+    opacity: 0.4;
+  }
+  .btn-sm {
+    padding: 0.15rem 0.7rem;
+    font-size: 0.75rem;
+  }
+  .btn-primary {
+    border-color: transparent;
+    background: linear-gradient(137deg, #7dd3fc 0%, #c4b5fd 50%, #f9a8d4 100%);
+    color: #0a0a0b;
+    font-weight: 600;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(137deg, #a5e3ff 0%, #d6caff 50%, #fbc3e1 100%);
+    border-color: transparent;
+    box-shadow: 0 0 28px rgba(196, 181, 253, 0.5);
+  }
+  .btn-danger {
+    border-color: rgba(248, 113, 113, 0.7);
+    color: #fca5a5;
+  }
+  .btn-danger:hover:not(:disabled) {
+    border-color: #f87171;
+    box-shadow: 0 0 22px rgba(248, 113, 113, 0.3);
+  }
+  .btn-active {
+    border-color: rgba(125, 211, 252, 0.8);
+    background: rgba(125, 211, 252, 0.14);
+  }
+
+  /* 입력 칸·선택 상자 */
+  .field {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.4rem 0.75rem;
+    color: #e7e9ee;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      background 0.2s ease;
+  }
+  .field::placeholder {
+    color: #6b7280;
+  }
+  .field:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+  .field:focus {
+    outline: none;
+    border-color: rgba(125, 211, 252, 0.8);
+    background: rgba(125, 211, 252, 0.06);
+    box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.18);
+  }
+  .field[aria-invalid="true"] {
+    border-color: #f87171;
+  }
+  .field option {
+    background: #1a1a1c;
+    color: #e7e9ee;
+  }
+
+  /* 제목 글자에 은은한 색 그라데이션 */
+  .text-gradient {
+    background: linear-gradient(100deg, #ffffff 0%, #bae6fd 40%, #ddd6fe 75%, #fbcfe8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
 
 /* 카드가 처음 나타날 때 아래에서 위로 올라오며 선명해진다. 끝나면 원래 스타일로 돌아가 호버·선택 효과와 겹치지 않는다. */
@@ -38,4 +227,18 @@ body {
   .card-in {
     animation: none;
   }
+  .btn {
+    transition: none;
+  }
+}
+
+/* 대화상자 뒤 배경 */
+dialog::backdrop {
+  background: rgba(2, 4, 10, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+/* 스크롤바도 어둡게 */
+* {
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }

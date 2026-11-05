@@ -15,9 +15,10 @@ interface AppShellProps {
 export default function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-black/10 bg-background dark:border-white/15">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0A0A0B]/70 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <h1 className="text-lg font-semibold tracking-tight">{SERVICE_NAME}</h1>        </div>
+          <h1 className="text-gradient text-xl font-semibold tracking-tight">{SERVICE_NAME}</h1>
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">

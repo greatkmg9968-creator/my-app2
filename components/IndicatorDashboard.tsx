@@ -59,7 +59,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 
 /** 도구 줄의 선택 상자·입력 상자 공통 모양 */
 const CONTROL_CLASS =
-  "rounded border border-black/20 bg-background px-2 py-1 text-sm dark:border-white/25";
+  "field text-sm";
 
 /** 지금 열려 있는 입력 창. 없으면 null */
 type FormTarget = { mode: "add" } | { mode: "edit"; index: number } | null;
@@ -92,7 +92,7 @@ function downloadBytes(bytes: Uint8Array, fileName: string): void {
 
 /** 도구 줄의 일반 버튼 모양 */
 const TOOL_BUTTON =
-  "rounded border border-black/20 px-3 py-1 text-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/25 dark:hover:bg-white/10";
+  "btn";
 
 interface IndicatorDashboardProps {
   /** 처음에 보여줄 지표. 화면에서 추가·수정·삭제하면 이 화면 안에서 바뀌고, 이 컴퓨터에 자동 저장된다. */
@@ -463,7 +463,7 @@ export default function IndicatorDashboard({
         <p
           role="status"
           data-testid="start-notice"
-          className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-amber-600/60 bg-amber-500/10 px-4 py-3 text-sm"
+          className="mb-4 flex items-start justify-between gap-3 rounded-2xl border border-amber-300/40 bg-amber-300/10 text-amber-50 px-4 py-3 text-sm"
         >
           <span>{startNotice}</span>
           <button type="button" onClick={() => setStartNotice(null)} className={`${TOOL_BUTTON} shrink-0 px-2 py-0.5 text-xs`}>
@@ -475,7 +475,7 @@ export default function IndicatorDashboard({
         <p
           role="alert"
           data-testid="save-failed"
-          className="mb-4 rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm"
+          className="mb-4 rounded-2xl border border-red-400/40 bg-red-400/10 text-red-50 px-4 py-3 text-sm"
         >
           <strong>자동 저장에 실패했습니다.</strong> 이 브라우저의 저장 공간이 부족하거나 저장이 막혀 있습니다. 지금 입력한
           내용이 사라지지 않게 &quot;엑셀 내보내기&quot;로 백업해 주세요.
@@ -485,7 +485,7 @@ export default function IndicatorDashboard({
       {/* ② 기준 정보 */}
       <section
         aria-label="기준 정보"
-        className="mb-4 rounded-lg border border-black/10 p-4 dark:border-white/15"
+        className="glass-panel mb-5 p-5"
       >
         <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
           <label className="flex flex-col gap-1 text-sm">
@@ -498,7 +498,7 @@ export default function IndicatorDashboard({
               maxLength={40}
               aria-invalid={branchReady ? undefined : true}
               data-testid="branch-input"
-              className="w-44 rounded border border-black/20 bg-background px-2 py-1 aria-[invalid=true]:border-red-600 dark:border-white/25"
+              className="field w-44"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
@@ -507,7 +507,7 @@ export default function IndicatorDashboard({
               type="date"
               value={referenceDate}
               onChange={(event) => setPickedDate(event.target.value)}
-              className="rounded border border-black/20 bg-background px-2 py-1 dark:border-white/25"
+              className="field"
             />
           </label>
           <p className="text-sm">
@@ -522,7 +522,7 @@ export default function IndicatorDashboard({
           브라우저에서는 보이지 않습니다. 브라우저의 사이트 데이터를 지우면 사라지니 가끔 &quot;엑셀 내보내기&quot;로 백업해 두세요.
         </p>
         {!branchReady && (
-          <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
+          <p role="alert" className="mt-2 text-xs text-red-400">
             부점 이름을 입력해야 지표를 추가하거나 엑셀 양식·올리기·내보내기를 쓸 수 있습니다.
           </p>
         )}
@@ -531,7 +531,7 @@ export default function IndicatorDashboard({
       {rows === null ? (
         <p
           role="status"
-          className="rounded-lg border border-dashed border-black/20 p-8 text-center text-sm dark:border-white/25"
+          className="rounded-3xl border border-dashed border-white/20 p-8 text-center text-sm"
         >
           {isReady ? "자료 기준일을 올바르게 선택해 주세요." : "자료 기준일을 확인하는 중입니다."}
         </p>
@@ -542,7 +542,7 @@ export default function IndicatorDashboard({
             <p
               role="status"
               data-testid="missing-note-alert"
-              className="mb-4 rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm"
+              className="mb-4 rounded-2xl border border-red-400/40 bg-red-400/10 text-red-50 px-4 py-3 text-sm"
             >
               <strong>보완사항을 입력해야 하는 부진지표가 {missingNoteCount}건 있습니다.</strong>{" "}
               지표 구분을 눌러 펼친 표에서 &quot;보완사항 입력 필요&quot; 버튼을 눌러 보완사항을 적어 주세요.
@@ -552,13 +552,13 @@ export default function IndicatorDashboard({
           {/* ④ 도구 줄: 지표 직접 입력, 엑셀 */}
           <section
             aria-label="지표 입력 도구"
-            className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-black/10 p-4 dark:border-white/15"
+            className="glass-panel panel-violet mb-8 flex flex-wrap items-center gap-3 p-5"
           >
             <button
               type="button"
               onClick={() => setFormTarget({ mode: "add" })}
               disabled={isFull || !branchReady}
-              className="rounded bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn btn-primary"
             >
               지표 추가
             </button>
@@ -617,12 +617,12 @@ export default function IndicatorDashboard({
                 role={uploadNotice.kind === "error" ? "alert" : "status"}
                 data-testid="upload-notice"
                 data-kind={uploadNotice.kind}
-                className={`w-full rounded-lg border px-4 py-3 text-sm ${
+                className={`w-full rounded-2xl border px-4 py-3 text-sm ${
                   uploadNotice.kind === "error"
-                    ? "border-red-600/50 bg-red-500/10"
+                    ? "border-red-400/40 bg-red-400/10"
                     : uploadNotice.kind === "warning"
-                      ? "border-amber-600/60 bg-amber-500/10"
-                      : "border-emerald-600/50 bg-emerald-500/10"
+                      ? "border-amber-300/40 bg-amber-300/10"
+                      : "border-emerald-400/40 bg-emerald-400/10"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -630,7 +630,7 @@ export default function IndicatorDashboard({
                   <button
                     type="button"
                     onClick={() => setUploadNotice(null)}
-                    className="shrink-0 rounded border border-black/20 px-2 py-0.5 text-xs hover:bg-black/5 dark:border-white/25 dark:hover:bg-white/10"
+                    className="btn btn-sm shrink-0"
                   >
                     닫기
                   </button>
@@ -648,7 +648,7 @@ export default function IndicatorDashboard({
 
           {/* 대시보드: 지표 구분별 정상·보완 도넛 */}
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-base font-semibold">
+            <h2 className="text-gradient text-lg font-semibold">
               지표 구분별 현황{" "}
               <span className="text-sm font-normal text-foreground/70" data-testid="overall-summary">
                 (전체 {rows.length}개 · 정상 {normalCount}개 · 보완 필요 {delayedCount}개)
@@ -660,7 +660,7 @@ export default function IndicatorDashboard({
               aria-pressed={selection === "all"}
               disabled={rows.length === 0}
               data-testid="show-all"
-              className={`${TOOL_BUTTON} ${selection === "all" ? "border-foreground bg-black/5 dark:bg-white/10" : ""}`}
+              className={`${TOOL_BUTTON} ${selection === "all" ? "btn-active" : ""}`}
             >
               {selection === "all" ? "전체 지표 접기" : "전체 지표 보기"}
             </button>
@@ -672,10 +672,10 @@ export default function IndicatorDashboard({
             <section
               aria-label={`${panelTitle} 세부 목록`}
               data-testid="detail-panel"
-              className="mt-4 rounded-lg border border-black/10 p-4 dark:border-white/15"
+              className="glass-panel panel-amber mt-10 p-5"
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-base font-semibold">
+                <h2 className="text-gradient text-lg font-semibold">
                   {panelTitle}{" "}
                   <span className="text-sm font-normal text-foreground/70">
                     {panelRows.visible.length === panelRows.base.length
@@ -765,7 +765,7 @@ export default function IndicatorDashboard({
               </p>
 
               {panelRows.visible.length === 0 ? (
-                <div role="status" className="rounded-lg border border-dashed border-black/20 p-8 text-center text-sm dark:border-white/25">
+                <div role="status" className="rounded-3xl border border-dashed border-white/20 p-8 text-center text-sm">
                   {indicators.length === 0 ? (
                     <>
                       <p>등록된 지표가 없습니다. 위의 &quot;지표 추가&quot;나 &quot;엑셀 올리기&quot;로 지표를 입력해 주세요.</p>
@@ -799,7 +799,7 @@ export default function IndicatorDashboard({
 
           {/* 지표가 하나도 없고 아무것도 펼치지 않았을 때의 안내 */}
           {indicators.length === 0 && selection === null && (
-            <div role="status" className="mt-4 rounded-lg border border-dashed border-black/20 p-6 text-center text-sm dark:border-white/25">
+            <div role="status" className="mt-4 rounded-3xl border border-dashed border-white/20 p-6 text-center text-sm">
               <p>등록된 지표가 없습니다. 위의 &quot;지표 추가&quot;나 &quot;엑셀 올리기&quot;로 지표를 입력해 주세요.</p>
               <button type="button" onClick={handleLoadSamples} disabled={!branchReady} className={`${TOOL_BUTTON} mt-3`}>
                 둘러보기용 샘플 지표 불러오기
