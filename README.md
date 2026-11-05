@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 성과지표 통합 대시보드
 
-## Getting Started
+각 부점의 **부점평가 담당자**가 올해 성과평가 지표의 진척률·예상달성도·보완사항을 한곳에서 확인하고, 시간 흐름보다 뒤처진 **부진지표**를 바로 찾을 수 있게 해 주는 웹 앱입니다.
 
-First, run the development server:
+지표 정보가 엑셀·한글 파일 등으로 흩어져 있어 월 1회 수기로 취합하던 일을, 입력 즉시 반영되는 대시보드로 바꾸는 것이 목표입니다. 보조 사용자(부점 기획팀장, 부점장 등)는 앱에 접속하지 않고 담당자가 내보낸 엑셀 파일로 현황을 확인합니다.
+
+> 기획 문서: [PRD.md](PRD.md)(기획서) · [PLAN.md](PLAN.md)(무엇을 어떤 순서로) · [DESIGN.md](DESIGN.md)(설계)
+
+## 주요 기능
+
+- **통합 대시보드:** 지표 구분(부점 계량 / 부점 비계량 / 공통 계량 / 공통 비계량)별 게이지형 도넛에 정상·보완 지표의 개수와 비율을 보여주고, 도넛을 누르면 세부 지표가 아래로 펼쳐집니다. "전체 지표 보기"로 최대 30개 지표를 모두 볼 수 있습니다.
+- **부진지표 판정:** 진척률 = (실적 − 기준) ÷ (목표 − 기준), 경과율 = 1월 1일부터 자료 기준일까지의 일수 ÷ 연간 일수. 진척률이 경과율보다 낮으면 부진지표로 강조하고 차이(%p)를 보여줍니다. 부진지표는 보완사항이 필수입니다.
+- **지표 입력·관리:** 화면에서 직접 입력하거나 엑셀로 일괄 등록합니다. 필터(부진지표만, 구분별)와 정렬(진척률·차이·지표명·배점)을 제공합니다.
+- **엑셀 입출력:** 양식 내려받기, 올리기, 전체 현황 내보내기(자료 기준일·경과율 포함). 내보낸 파일을 다시 올려도 같은 값이 돌아옵니다.
+- **세부 화면:** 필요 실적 역산, 월별 실적 추이(누적/월말값), 부진지표 개선조치 이력, 추진과제, 첨부파일(한글·엑셀·PDF 등).
+- **질의응답 챗봇:** "부진지표 진척률 낮은 것부터 5개 알려줘" 같은 지표 질문과, 올려 둔 자료 속 내용 찾기에 답합니다. **외부 AI를 쓰지 않고** 브라우저 안에서만 동작합니다.
+
+## 데이터와 보안
+
+- 로그인은 없습니다. 부점 이름은 화면에서 직접 입력하고, 엑셀을 올릴 때 파일의 부점 이름이 화면과 같아야 합니다. (실수 방지 장치이며 접근 통제는 아닙니다)
+- 입력한 지표·첨부파일은 **이 컴퓨터의 브라우저에만 자동 저장**(localStorage, IndexedDB)되고, 서버나 외부로 보내지 않습니다. 다른 컴퓨터에서는 보이지 않으니 엑셀로 가끔 백업하세요.
+- 저장소에는 비밀 값(`.env`)이 없습니다. 이 앱은 API 키를 사용하지 않습니다.
+- 화면에 처음 보이는 지표 30건은 **개발용 가상 샘플**입니다. "전체 지우기"로 지우고 실제 지표를 입력하세요.
+
+## 기술 스택
+
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · ExcelJS(엑셀) · pdfjs-dist·mammoth(챗봇 자료 검색) · Vitest(계산 규칙 테스트) · Vercel 배포
+
+## 실행 방법
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # 개발 서버 (http://localhost:3000)
+npm test         # 계산 규칙·엑셀·챗봇 로직 테스트
+npm run lint     # 코드 점검
+npm run build    # 배포용 빌드 확인
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 폴더 구조
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `app/` — 화면(`page.tsx`)과 공통 레이아웃·스타일
+- `components/` — 대시보드, 도넛, 표, 입력 창, 세부 화면, 챗봇 등 화면 부품
+- `lib/` — 진척률·경과율 계산, 엑셀 읽기·쓰기, 저장, 챗봇 질문 해석·자료 검색 (테스트 포함)
+- `types/` — 지표 데이터 구조
