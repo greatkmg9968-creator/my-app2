@@ -78,8 +78,9 @@ function readOutput(data: unknown): { text: string; urls: string[] } {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const accessCode = process.env.CASE_ACCESS_CODE;
+  // 환경 변수를 넣을 때 끝에 줄바꿈이 딸려 들어가기 쉬우므로 앞뒤 공백은 지운다.
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const accessCode = process.env.CASE_ACCESS_CODE?.trim();
   // 설정이 빠져 있으면 문을 닫아 둔다. (코드 없이 열려 요금이 나가는 일을 막는다)
   if (!apiKey || !accessCode) {
     return reply(503, { error: "우수사례 추천은 아직 설정되지 않아 사용할 수 없습니다." });
