@@ -5,7 +5,7 @@
 // 어떤 지표를 어떤 순서로 보여줄지는 위(IndicatorDashboard)에서 정하고, 이 표는 받은 줄을 그대로 그린다.
 
 import ProgressBar from "@/components/ProgressBar";
-import { hasMissingNote, hasMonthlyValues, type IndicatorEvaluation } from "@/lib/calc";
+import { hasMissingNote, type IndicatorEvaluation } from "@/lib/calc";
 import type { IndicatorRow } from "@/lib/filterSort";
 import {
   EMPTY_MARK,
@@ -13,7 +13,6 @@ import {
   formatNumber,
   formatPercent,
 } from "@/lib/format";
-import type { Indicator } from "@/types/indicator";
 
 interface IndicatorTableProps {
   rows: IndicatorRow[];
@@ -65,16 +64,6 @@ function ProgressCell({ evaluation }: { evaluation: IndicatorEvaluation }) {
   );
 }
 
-/** 지표에 붙은 기록(월별 실적·개선조치·추진과제·첨부파일)을 한 줄로 요약한다. 하나도 없으면 null */
-function recordSummary(indicator: Indicator): string | null {
-  const parts: string[] = [];
-  if (hasMonthlyValues(indicator)) parts.push("월별 실적");
-  if ((indicator.actions ?? []).length > 0) parts.push(`조치 ${indicator.actions?.length}`);
-  if ((indicator.tasks ?? []).length > 0) parts.push(`과제 ${indicator.tasks?.length}`);
-  if ((indicator.attachments ?? []).length > 0) parts.push(`파일 ${indicator.attachments?.length}`);
-  return parts.length > 0 ? parts.join(" · ") : null;
-}
-
 const HEAD_CELL = "whitespace-nowrap px-4 py-3 text-left text-xs font-medium tracking-wide text-gray-300";
 const NUMBER_HEAD_CELL = "whitespace-nowrap px-4 py-3 text-right text-xs font-medium tracking-wide text-gray-300";
 const CELL = "px-4 py-3 align-top text-gray-200";
@@ -89,7 +78,7 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
 
   return (
     <div className="overflow-x-auto rounded-3xl border border-white/10 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-      <table className="w-full min-w-[960px] border-collapse text-sm">
+      <table className="w-full min-w-[1500px] border-collapse text-sm">
         <caption className="sr-only">
           성과지표 현황 (총 {rows.length}건)
         </caption>
@@ -110,7 +99,6 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
         </thead>
         <tbody>
           {rows.map(({ indicator, evaluation, index }) => {
-            const records = recordSummary(indicator);
             return (
               <tr
                 // 지표에는 고유 번호가 없을 수 있어, 전체 목록에서의 위치(index)로 구분한다.
@@ -124,7 +112,8 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
                 data-status={evaluation.status}
               >
                 <td className={`${CELL} whitespace-nowrap`}>{indicator.category}</td>
-                <td className={`${CELL} font-medium`}>
+                {/* 지표명 칸은 넉넉한 폭을 두어 한두 줄로 보이게 한다. */}
+                <td className={`${CELL} min-w-[16rem] font-medium`}>
                   {onOpenDetail ? (
                     <button
                       type="button"
@@ -138,12 +127,9 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
                   ) : (
                     indicator.name
                   )}
-                  {records && (
-                    <span className="mt-0.5 block text-xs font-normal text-foreground/60">{records}</span>
-                  )}
                 </td>
-                <td className={CELL}>{indicator.item}</td>
-                <td className={CELL}>{indicator.method}</td>
+                <td className={`${CELL} min-w-[12rem]`}>{indicator.item}</td>
+                <td className={`${CELL} min-w-[13rem]`}>{indicator.method}</td>
                 <td className={NUMBER_CELL}>{formatNumber(indicator.weight)}</td>
                 <td className={NUMBER_CELL}>{formatNumber(indicator.targetValue)}</td>
                 <td className={NUMBER_CELL}>{formatNumber(evaluation.actual ?? undefined)}</td>
@@ -151,7 +137,7 @@ export default function IndicatorTable({ rows, onOpenDetail, onEdit, onDelete }:
                   <ProgressCell evaluation={evaluation} />
                 </td>
                 <td className={NUMBER_CELL}>{formatPercent(indicator.expected)}</td>
-                <td className={CELL}>
+                <td className={`${CELL} min-w-[15rem]`}>
                   {hasMissingNote(indicator, evaluation.status) ? (
                     // 부진인데 보완사항이 비어 있다. (예: 자료 기준일을 바꿔 새로 부진이 된 지표)
                     onEdit ? (
