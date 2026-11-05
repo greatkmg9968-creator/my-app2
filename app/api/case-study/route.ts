@@ -7,6 +7,7 @@ import {
   buildPrompt,
   createDailyLimiter,
   extractCases,
+  extractSuggestions,
   isAccessCodeValid,
   normalizeUrl,
   parseCaseRequest,
@@ -135,7 +136,9 @@ export async function POST(request: Request): Promise<Response> {
       candidates.map(async (c) => ((cited.has(c.url) || (await pageExists(c.url))) ? c : null)),
     );
     const cases = checked.filter((c) => c !== null);
-    return reply(200, { cases, remaining: turn.remaining });
+    // AI 자체 추천은 출처가 없는 참고용이라 사례와 따로 돌려준다.
+    const suggestions = extractSuggestions(text);
+    return reply(200, { cases, suggestions, remaining: turn.remaining });
   } catch {
     return reply(504, { error: "사례 검색이 너무 오래 걸려 중단했습니다. 잠시 뒤 다시 시도해 주세요." });
   } finally {

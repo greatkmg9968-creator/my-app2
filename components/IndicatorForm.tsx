@@ -490,6 +490,7 @@ export default function IndicatorForm({
             <CaseStudyPanel
               name={values.name}
               item={values.item}
+              method={values.method}
               onInsert={(text) =>
                 setValues((current) => ({
                   ...current,
