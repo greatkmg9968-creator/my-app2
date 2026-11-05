@@ -5,7 +5,7 @@ import { evaluateIndicator } from "@/lib/calc";
 import { excerpt, looksLikeDocumentQuestion, queryTerms, searchChunks, splitIntoChunks, type DocChunk } from "@/lib/docSearch";
 import type { IndicatorRow } from "@/lib/filterSort";
 import { answerIndicatorQuestion, detectLimit, detectScope, matchesScope } from "@/lib/qa";
-import { SAMPLE_INDICATORS } from "@/lib/sampleData";
+import { SAMPLE_INDICATORS } from "@/lib/fixtureData";
 
 const REFERENCE = "2026-10-15";
 const rows: IndicatorRow[] = SAMPLE_INDICATORS.map((indicator, index) => ({

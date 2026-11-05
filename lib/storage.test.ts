@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { MAX_INDICATORS, type Indicator } from "@/types/indicator";
-import { SAMPLE_BRANCH, SAMPLE_INDICATORS } from "./sampleData";
+import { SAMPLE_BRANCH, SAMPLE_INDICATORS } from "./fixtureData";
 import { STORAGE_VERSION, deserializeState, sanitizeIndicator, serializeState } from "./storage";
 
 const BRANCH = "서울지점";

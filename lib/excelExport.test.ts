@@ -5,7 +5,7 @@ import { evaluateIndicator } from "./calc";
 import { EXCEL_COLUMNS, exportFileName } from "./excelFormat";
 import { EXPORT_HEADERS, exportInfoLines, toExportCells } from "./excelExport";
 import type { IndicatorRow } from "./filterSort";
-import { SAMPLE_INDICATORS, SAMPLE_REFERENCE_DATE } from "./sampleData";
+import { SAMPLE_INDICATORS, SAMPLE_REFERENCE_DATE } from "./fixtureData";
 import type { Indicator } from "@/types/indicator";
 
 const rowFor = (indicator: Indicator, index = 0, date = SAMPLE_REFERENCE_DATE): IndicatorRow => ({

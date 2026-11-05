@@ -16,7 +16,7 @@ import {
 } from "./excelFormat";
 import { parseUploadedSheet, parseUploadedWorkbook } from "./excelRows";
 import type { IndicatorRow } from "./filterSort";
-import { SAMPLE_BRANCH, SAMPLE_INDICATORS, SAMPLE_REFERENCE_DATE } from "./sampleData";
+import { SAMPLE_BRANCH, SAMPLE_INDICATORS, SAMPLE_REFERENCE_DATE } from "./fixtureData";
 
 const BRANCH = "테스트부점";
 const CONTEXT = { branch: BRANCH, referenceDate: "2026-10-15" };

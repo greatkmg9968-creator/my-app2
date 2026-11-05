@@ -11,7 +11,7 @@ import {
   sortRows,
   type IndicatorRow,
 } from "./filterSort";
-import { SAMPLE_INDICATORS, SAMPLE_REFERENCE_DATE } from "./sampleData";
+import { SAMPLE_INDICATORS, SAMPLE_REFERENCE_DATE } from "./fixtureData";
 
 const rows: IndicatorRow[] = SAMPLE_INDICATORS.map((indicator, index) => ({
   indicator,

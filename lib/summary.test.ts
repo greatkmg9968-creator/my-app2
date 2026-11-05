@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { INDICATOR_CATEGORIES, type Indicator, type IndicatorCategory } from "@/types/indicator";
 import { evaluateIndicator } from "./calc";
 import type { IndicatorRow } from "./filterSort";
-import { SAMPLE_INDICATORS, SAMPLE_REFERENCE_DATE } from "./sampleData";
+import { SAMPLE_INDICATORS, SAMPLE_REFERENCE_DATE } from "./fixtureData";
 import { summarizeByCategory } from "./summary";
 
 function rowsOf(indicators: Indicator[], date = SAMPLE_REFERENCE_DATE): IndicatorRow[] {

@@ -39,6 +39,15 @@ export default function DashboardLoader() {
         notice: null as string | null,
       };
     }
+    // 예전 샘플(샘플부점 + sample-N 번호만 있는 상태)이 그대로 저장돼 있으면 새 샘플로 바꾼다.
+    // 사용자가 부점 이름을 바꾸었거나 직접 입력한 지표가 있으면 그대로 둔다.
+    const isOldSample =
+      loaded.state.branch === "샘플부점" &&
+      loaded.state.indicators.length > 0 &&
+      loaded.state.indicators.every((item) => item.id?.startsWith("sample-"));
+    if (isOldSample) {
+      return { indicators: SAMPLE_INDICATORS, branch: SAMPLE_BRANCH, notice: null as string | null };
+    }
     return {
       indicators: ensureIds(loaded.state.indicators),
       branch: loaded.state.branch,
